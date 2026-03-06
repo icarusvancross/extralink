@@ -12,14 +12,15 @@ export default function WaitingPage() {
   const [count, setCount] = useState(15);
   const [isPaused, setIsPaused] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
-  const [showRealButton, setShowRealButton] = useState(false); // إخفاء الزر الحقيقي
+  const [showRealButton, setShowRealButton] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isBlocked, setIsBlocked] = useState(false);
   const [adBlockEnabled, setAdBlockEnabled] = useState(false);
 
-  const nativeTopRef = useRef<HTMLDivElement>(null);
-  const bannerMiddleRef = useRef<HTMLDivElement>(null);
-  const nativeBottomRef = useRef<HTMLDivElement>(null);
+  // مراجع الأماكن الإعلانية
+  const adContainerTop = useRef<HTMLDivElement>(null);
+  const adContainerMiddle = useRef<HTMLDivElement>(null);
+  const adContainerBottom = useRef<HTMLDivElement>(null);
 
   const ADS_CONFIG = {
     SOCIAL_BAR: "https://pl28859100.effectivegatecpm.com/fe/4c/47/fe4c47fb58ff46e2395b8f4a2ec3ceac.js",
@@ -29,32 +30,36 @@ export default function WaitingPage() {
     BANNER_300_ID: "595231c2d8c14bc458ea69e3fcc8d37e"
   };
 
-  // وظيفة حقن الإعلانات الإجبارية
-  const injectAds = () => {
-    const scripts = [
-      { id: `container-${ADS_CONFIG.NATIVE_ID}`, src: `https://pl28859679.effectivegatecpm.com/${ADS_CONFIG.NATIVE_ID}/invoke.js`, ref: nativeTopRef },
-      { id: `container-native-bottom`, src: `https://pl28859679.effectivegatecpm.com/${ADS_CONFIG.NATIVE_ID}/invoke.js`, ref: nativeBottomRef }
-    ];
-
-    scripts.forEach(s => {
-      if (s.ref.current && s.ref.current.innerHTML === "") {
-        const scr = document.createElement('script');
-        scr.src = s.src; scr.async = true; scr.setAttribute('data-cfasync', 'false');
-        s.ref.current.appendChild(scr);
-      }
-    });
-
-    if (bannerMiddleRef.current && bannerMiddleRef.current.innerHTML === "") {
+  // وظيفة حقن الإعلانات (طريقة يدوية صارمة)
+  const forceLoadAds = () => {
+    // 1. حقن Native العلوي
+    if (adContainerTop.current && adContainerTop.current.innerHTML === "") {
+      const s = document.createElement('script');
+      s.src = `https://pl28859679.effectivegatecpm.com/${ADS_CONFIG.NATIVE_ID}/invoke.js`;
+      s.async = true; s.setAttribute('data-cfasync', 'false');
+      adContainerTop.current.appendChild(s);
+    }
+    // 2. حقن البانر المربع في المنتصف
+    if (adContainerMiddle.current && adContainerMiddle.current.innerHTML === "") {
       const conf = document.createElement('script');
       conf.innerHTML = `atOptions = { 'key' : '${ADS_CONFIG.BANNER_300_ID}', 'format' : 'iframe', 'height' : 250, 'width' : 300, 'params' : {} };`;
       const scr = document.createElement('script');
       scr.src = `https://www.highperformanceformat.com/${ADS_CONFIG.BANNER_300_ID}/invoke.js`;
-      bannerMiddleRef.current.appendChild(conf); bannerMiddleRef.current.appendChild(scr);
+      adContainerMiddle.current.appendChild(conf);
+      adContainerMiddle.current.appendChild(scr);
+    }
+    // 3. حقن Native السفلي
+    if (adContainerBottom.current && adContainerBottom.current.innerHTML === "") {
+      const s = document.createElement('script');
+      s.src = `https://pl28859679.effectivegatecpm.com/${ADS_CONFIG.NATIVE_ID}/invoke.js`;
+      s.async = true; s.setAttribute('data-cfasync', 'false');
+      adContainerBottom.current.appendChild(s);
     }
   };
 
   useEffect(() => {
     const initPage = async () => {
+      // فحص AdBlock
       const testAd = document.createElement('div');
       testAd.innerHTML = '&nbsp;'; testAd.className = 'adsbox';
       document.body.appendChild(testAd);
@@ -72,10 +77,11 @@ export default function WaitingPage() {
       } catch (err) { setLoading(false); }
     };
     initPage();
-    injectAds();
+    // تشغيل الحقن فوراً
+    setTimeout(forceLoadAds, 500);
   }, [code]);
 
-  // عداد ذكي يستأنف عند العودة للصفحة
+  // عداد صارم
   useEffect(() => {
     let interval: any;
     if (hasStarted && !isPaused && !document.hidden && count > 0) {
@@ -84,7 +90,7 @@ export default function WaitingPage() {
     return () => clearInterval(interval);
   }, [hasStarted, isPaused, count]);
 
-  // مستشعر العودة للموقع (Focus)
+  // مستشعر العودة للموقع
   useEffect(() => {
     const handleFocus = () => setIsPaused(false);
     const handleBlur = () => setIsPaused(true);
@@ -102,11 +108,6 @@ export default function WaitingPage() {
       window.open(ADS_CONFIG.SMARTLINK, '_blank');
     }
     setIsPaused(false);
-  };
-
-  const handleFakeContinue = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setShowRealButton(true); // إظهار الزر الحقيقي في الأسفل
   };
 
   const handleNext = () => {
@@ -135,12 +136,13 @@ export default function WaitingPage() {
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white font-black animate-pulse uppercase tracking-widest">ExtraLink Loading...</div>;
-  if (adBlockEnabled) return <div className="min-h-screen bg-red-600 flex items-center justify-center text-white p-10 text-center font-bold uppercase">Please Disable AdBlock!</div>;
+  if (adBlockEnabled) return <div className="min-h-screen bg-red-600 flex items-center justify-center text-white p-10 text-center font-bold uppercase tracking-tighter">Please Disable AdBlock!</div>;
   if (isBlocked) return <div className="min-h-screen bg-slate-950 flex items-center justify-center text-red-500 p-10 text-center font-bold text-2xl uppercase">Daily Limit Reached! 🛑</div>;
 
   return (
     <div onClick={handleStartInteraction} className="min-h-screen bg-slate-50 flex flex-col items-center relative font-sans overflow-x-hidden cursor-pointer pb-40">
       
+      {/* سكريبتات Adsterra العائمة */}
       <Script src={ADS_CONFIG.SOCIAL_BAR} strategy="afterInteractive" />
       <Script src={ADS_CONFIG.POPUNDER} strategy="afterInteractive" />
 
@@ -158,9 +160,10 @@ export default function WaitingPage() {
         <h1 className="text-2xl font-black text-blue-600 italic tracking-tighter">ExtraLink</h1>
       </header>
 
-      {/* 1. إعلان Native علوي */}
+      {/* 1. إعلان Native علوي (مكان مخصص) */}
       <div className="w-full max-w-md mt-6 px-4">
-        <div id={`container-${ADS_CONFIG.NATIVE_ID}`} ref={nativeTopRef} className="rounded-3xl overflow-hidden shadow-lg border border-slate-100 bg-white min-h-[160px]"></div>
+        <p className="text-[7px] text-slate-400 font-black uppercase mb-2 text-center tracking-[0.3em]">Advertisement</p>
+        <div id={`container-${ADS_CONFIG.NATIVE_ID}-top`} ref={adContainerTop} className="rounded-3xl overflow-hidden shadow-lg border border-slate-100 bg-white min-h-[160px]"></div>
       </div>
 
       {/* الكارت الرئيسي للعداد */}
@@ -182,7 +185,7 @@ export default function WaitingPage() {
         ) : (
           <div className="py-10 space-y-4">
             <button 
-              onClick={handleFakeContinue}
+              onClick={(e) => { e.stopPropagation(); setShowRealButton(true); }}
               className="w-full bg-blue-600 text-white font-black py-6 rounded-[2rem] text-2xl uppercase tracking-tighter shadow-xl active:scale-95 transition-all"
             >
               CONTINUE
@@ -212,10 +215,10 @@ export default function WaitingPage() {
           </div>
         </div>
 
-        {/* 2. بانر مربع 300x250 */}
+        {/* 2. بانر مربع 300x250 (مكان مخصص) */}
         <div className="flex flex-col items-center py-10">
           <p className="text-slate-300 text-[7px] font-black uppercase mb-4 tracking-[0.5em]">Sponsored Content</p>
-          <div className="rounded-[3rem] overflow-hidden shadow-2xl border-[12px] border-white bg-white min-h-[250px] min-w-[300px]" ref={bannerMiddleRef}></div>
+          <div id="ad-middle-banner" ref={adContainerMiddle} className="rounded-[3rem] overflow-hidden shadow-2xl border-[12px] border-white bg-white min-h-[250px] min-w-[300px]"></div>
         </div>
 
         <div className="space-y-6">
@@ -229,10 +232,10 @@ export default function WaitingPage() {
           </div>
         </div>
 
-        {/* 3. إعلان Native سفلي */}
+        {/* 3. إعلان Native سفلي (مكان مخصص) */}
         <div className="w-full px-4 py-10">
           <p className="text-[7px] text-slate-400 font-black uppercase mb-4 text-center tracking-[0.3em]">Recommended for you</p>
-          <div id="container-native-bottom" ref={nativeBottomRef} className="rounded-3xl overflow-hidden shadow-lg border border-slate-100 bg-white min-h-[160px]"></div>
+          <div id={`container-${ADS_CONFIG.NATIVE_ID}-bottom`} ref={adContainerBottom} className="rounded-3xl overflow-hidden shadow-lg border border-slate-100 bg-white min-h-[160px]"></div>
         </div>
 
         {/* الزر الحقيقي (يظهر فقط بعد ضغط Continue) */}
