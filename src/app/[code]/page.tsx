@@ -15,6 +15,7 @@ export default function WaitingPage() {
   const [loading, setLoading] = useState(true);
   const [isBlocked, setIsBlocked] = useState(false);
   const [adBlockEnabled, setAdBlockEnabled] = useState(false);
+  const [showAds, setShowAds] = useState(false);
 
   const nativeTopRef = useRef<HTMLDivElement>(null);
   const bannerMiddleRef = useRef<HTMLDivElement>(null);
@@ -28,25 +29,20 @@ export default function WaitingPage() {
     BANNER_300_ID: "595231c2d8c14bc458ea69e3fcc8d37e"
   };
 
-  // وظيفة حقن الإعلانات في الـ 3 أماكن
   const injectAllAds = () => {
-    // 1. حقن Native العلوي
     if (nativeTopRef.current && nativeTopRef.current.innerHTML === "") {
       const s = document.createElement('script');
       s.src = `https://pl28859679.effectivegatecpm.com/${ADS_CONFIG.NATIVE_ID}/invoke.js`;
       s.async = true; s.setAttribute('data-cfasync', 'false');
       nativeTopRef.current.appendChild(s);
     }
-    // 2. حقن البانر المربع في المنتصف
     if (bannerMiddleRef.current && bannerMiddleRef.current.innerHTML === "") {
       const conf = document.createElement('script');
       conf.innerHTML = `atOptions = { 'key' : '${ADS_CONFIG.BANNER_300_ID}', 'format' : 'iframe', 'height' : 250, 'width' : 300, 'params' : {} };`;
       const scr = document.createElement('script');
       scr.src = `https://www.highperformanceformat.com/${ADS_CONFIG.BANNER_300_ID}/invoke.js`;
-      bannerMiddleRef.current.appendChild(conf);
-      bannerMiddleRef.current.appendChild(scr);
+      bannerMiddleRef.current.appendChild(conf); bannerMiddleRef.current.appendChild(scr);
     }
-    // 3. حقن Native السفلي
     if (nativeBottomRef.current && nativeBottomRef.current.innerHTML === "") {
       const s = document.createElement('script');
       s.src = `https://pl28859679.effectivegatecpm.com/${ADS_CONFIG.NATIVE_ID}/invoke.js`;
@@ -74,26 +70,16 @@ export default function WaitingPage() {
       } catch (err) { setLoading(false); }
     };
     initPage();
-    // تشغيل الحقن فوراً وبدون تأخير
-    setTimeout(injectAllAds, 100);
+    setTimeout(() => { setShowAds(true); injectAllAds(); }, 100);
   }, [code]);
 
-  // عداد صارم جداً يتوقف عند الخروج
   useEffect(() => {
     let interval: any;
     if (hasStarted && !isPaused && !document.hidden && count > 0) {
-      interval = setInterval(() => {
-        setCount((prev) => prev - 1);
-      }, 1000);
+      interval = setInterval(() => { setCount((prev) => prev - 1); }, 1000);
     }
     return () => clearInterval(interval);
   }, [hasStarted, isPaused, count]);
-
-  useEffect(() => {
-    const handleVisibility = () => { if (document.hidden) setIsPaused(true); };
-    document.addEventListener("visibilitychange", handleVisibility);
-    return () => document.removeEventListener("visibilitychange", handleVisibility);
-  }, []);
 
   const handleStartInteraction = () => {
     if (!hasStarted) {
@@ -126,7 +112,6 @@ export default function WaitingPage() {
   return (
     <div onClick={handleStartInteraction} className="min-h-screen bg-slate-50 flex flex-col items-center relative font-sans overflow-x-hidden cursor-pointer pb-40">
       
-      {/* سكريبتات Adsterra التلقائية */}
       <Script src={ADS_CONFIG.SOCIAL_BAR} strategy="afterInteractive" />
       <Script src={ADS_CONFIG.POPUNDER} strategy="afterInteractive" />
 
@@ -144,9 +129,8 @@ export default function WaitingPage() {
         <h1 className="text-2xl font-black text-blue-600 italic tracking-tighter">ExtraLink</h1>
       </header>
 
-      {/* 1. إعلان Native علوي (تحت الهيدر مباشرة) */}
+      {/* 1. إعلان Native علوي */}
       <div className="w-full max-w-md mt-6 px-4">
-        <p className="text-[7px] text-slate-400 font-black uppercase mb-2 text-center tracking-[0.3em]">Advertisement</p>
         <div id={`container-${ADS_CONFIG.NATIVE_ID}-top`} ref={nativeTopRef} className="rounded-3xl overflow-hidden shadow-lg border border-slate-100 bg-white min-h-[160px]"></div>
       </div>
 
@@ -160,21 +144,28 @@ export default function WaitingPage() {
             {isFinalPage ? 'Finalizing Link' : `Step ${step} of ${linkData.page_count}`}
           </span>
         </div>
+        
         {count > 0 ? (
           <div className="py-10">
             <div className="text-9xl font-black text-slate-800 tabular-nums leading-none tracking-tighter">{count}</div>
             <p className="text-slate-400 font-black mt-6 uppercase text-[10px] tracking-[0.3em] animate-pulse">Security Scan...</p>
           </div>
         ) : (
-          <button onClick={(e) => { e.stopPropagation(); isFinalPage ? handleGetLink() : handleNext(); }} className={`w-full text-white font-black py-8 rounded-[2.5rem] shadow-2xl transition-all active:scale-95 text-3xl uppercase tracking-tighter ${isFinalPage ? 'bg-green-500 shadow-green-200' : 'bg-blue-600 shadow-blue-200'}`}>
-            {isFinalPage ? 'Get Link 🚀' : 'Continue →'}
-          </button>
+          <div className="py-10 space-y-4">
+            {/* الزر الوهمي */}
+            <button className="w-full bg-slate-100 text-slate-400 font-black py-6 rounded-[2rem] text-2xl uppercase tracking-tighter cursor-default">
+              CONTINUE
+            </button>
+            {/* النص الأحمر الإرشادي */}
+            <p className="text-red-600 font-black text-sm animate-bounce uppercase tracking-tighter">
+              👇 Scroll down for Next Page 👇
+            </p>
+          </div>
         )}
       </div>
 
       {/* محتوى وهمي طويل جداً */}
       <div className="max-w-md w-full px-8 mt-20 space-y-20 text-center">
-        
         <div className="space-y-6">
           <h3 className="font-black text-slate-800 uppercase text-sm tracking-widest">Server Status</h3>
           <div className="grid grid-cols-2 gap-4">
@@ -202,27 +193,32 @@ export default function WaitingPage() {
             <p>{`> Verifying IP: 103.XX.XX.XX`}</p>
             <p>{`> Bypassing firewall... OK`}</p>
             <p>{`> Encrypting destination URL...`}</p>
-            <p>{`> Checking for malicious scripts...`}</p>
             <p>{`> Connection: STABLE`}</p>
-            <p className="animate-pulse">{`> Waiting for user confirmation...`}</p>
           </div>
         </div>
 
-        {/* 3. إعلان Native سفلي (قبل الفوتر) */}
+        {/* 3. إعلان Native سفلي */}
         <div className="w-full px-4 py-10">
           <p className="text-[7px] text-slate-400 font-black uppercase mb-4 text-center tracking-[0.3em]">Recommended for you</p>
           <div id={`container-${ADS_CONFIG.NATIVE_ID}-bottom`} ref={nativeBottomRef} className="rounded-3xl overflow-hidden shadow-lg border border-slate-100 bg-white min-h-[160px]"></div>
         </div>
 
-        <div className="bg-blue-600 p-10 rounded-[3rem] text-white text-left shadow-2xl relative overflow-hidden">
-          <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
-          <h4 className="font-black uppercase text-sm mb-4 tracking-tighter">Why ExtraLink?</h4>
-          <p className="text-xs leading-relaxed opacity-90 font-medium">We provide the most secure environment for file sharing. Our servers are distributed globally to ensure the fastest response times for our users in Asia, Europe, and the Middle East. Your data is encrypted with AES-256 bit technology.</p>
-        </div>
+        {/* الزر الحقيقي (يظهر فقط بعد انتهاء العداد) */}
+        {count === 0 && (
+          <div className="pt-10 animate-fadeIn">
+            <button 
+              onClick={(e) => { e.stopPropagation(); isFinalPage ? handleGetLink() : handleNext(); }} 
+              className={`w-full text-white font-black py-8 rounded-[2.5rem] shadow-2xl transition-all active:scale-95 text-3xl uppercase tracking-tighter ${isFinalPage ? 'bg-green-500 shadow-green-200' : 'bg-blue-600 shadow-blue-200'}`}
+            >
+              {isFinalPage ? 'Get Link Now 🚀' : 'Next Page →'}
+            </button>
+          </div>
+        )}
 
-        <p className="text-[10px] text-slate-300 leading-loose pb-20 font-medium">
-          ExtraLink uses advanced AI to detect and block malicious traffic. Your safety is our priority. Please do not close this window until the process is complete. By continuing, you agree to our terms of service and privacy policy.
-        </p>
+        <div className="bg-blue-600 p-10 rounded-[3rem] text-white text-left shadow-2xl relative overflow-hidden">
+          <h4 className="font-black uppercase text-sm mb-4 tracking-tighter">Why ExtraLink?</h4>
+          <p className="text-xs leading-relaxed opacity-90 font-medium">We provide the most secure environment for file sharing. Our servers are distributed globally to ensure the fastest response times.</p>
+        </div>
       </div>
 
       <footer className="mt-20 opacity-20 grayscale font-black text-[8px] tracking-[0.5em] text-center px-10 pb-10">
