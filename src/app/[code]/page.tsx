@@ -18,7 +18,6 @@ export default function WaitingPage() {
 
   const bannerRef = useRef<HTMLDivElement>(null);
   const nativeTopRef = useRef<HTMLDivElement>(null);
-  const nativeBottomRef = useRef<HTMLDivElement>(null);
 
   const ADS_CONFIG = {
     SOCIAL_BAR: "https://pl28859100.effectivegatecpm.com/fe/4c/47/fe4c47fb58ff46e2395b8f4a2ec3ceac.js",
@@ -28,29 +27,23 @@ export default function WaitingPage() {
     BANNER_300_ID: "595231c2d8c14bc458ea69e3fcc8d37e"
   };
 
-  // وظيفة الحقن الإجباري للبانرات
-  const forceInjectAds = () => {
-    // 1. حقن Native العلوي
-    if (nativeTopRef.current && !nativeTopRef.current.innerHTML) {
-      const s = document.createElement('script');
-      s.src = `https://pl28859679.effectivegatecpm.com/${ADS_CONFIG.NATIVE_ID}/invoke.js`;
-      s.async = true; s.setAttribute('data-cfasync', 'false');
-      nativeTopRef.current.appendChild(s);
-    }
-    // 2. حقن البانر المربع 300x250
-    if (bannerRef.current && !bannerRef.current.innerHTML) {
+  // وظيفة حقن الإعلانات بطريقة إجبارية (تخترق نظام React)
+  const injectAdsterra = (container: HTMLDivElement | null, type: 'native' | 'banner') => {
+    if (!container || container.innerHTML !== "") return;
+
+    if (type === 'native') {
+      const script = document.createElement('script');
+      script.src = `https://pl28859679.effectivegatecpm.com/${ADS_CONFIG.NATIVE_ID}/invoke.js`;
+      script.async = true;
+      script.setAttribute('data-cfasync', 'false');
+      container.appendChild(script);
+    } else {
       const conf = document.createElement('script');
       conf.innerHTML = `atOptions = { 'key' : '${ADS_CONFIG.BANNER_300_ID}', 'format' : 'iframe', 'height' : 250, 'width' : 300, 'params' : {} };`;
-      const scr = document.createElement('script');
-      scr.src = `https://www.highperformanceformat.com/${ADS_CONFIG.BANNER_300_ID}/invoke.js`;
-      bannerRef.current.appendChild(conf); bannerRef.current.appendChild(scr);
-    }
-    // 3. حقن Native السفلي (تكرار للربح)
-    if (nativeBottomRef.current && !nativeBottomRef.current.innerHTML) {
-      const s = document.createElement('script');
-      s.src = `https://pl28859679.effectivegatecpm.com/${ADS_CONFIG.NATIVE_ID}/invoke.js`;
-      s.async = true; s.setAttribute('data-cfasync', 'false');
-      nativeBottomRef.current.appendChild(s);
+      const script = document.createElement('script');
+      script.src = `https://www.highperformanceformat.com/${ADS_CONFIG.BANNER_300_ID}/invoke.js`;
+      container.appendChild(conf);
+      container.appendChild(script);
     }
   };
 
@@ -74,11 +67,19 @@ export default function WaitingPage() {
       } catch (err) { setLoading(false); }
     };
     initPage();
-    // تشغيل الحقن فوراً
-    setTimeout(forceInjectAds, 500);
   }, [code]);
 
-  // عداد صارم جداً
+  // حقن الإعلانات فوراً عند تحميل الصفحة
+  useEffect(() => {
+    if (!loading && !isBlocked && !adBlockEnabled) {
+      setTimeout(() => {
+        injectAdsterra(nativeTopRef.current, 'native');
+        injectAdsterra(bannerRef.current, 'banner');
+      }, 1000);
+    }
+  }, [loading, isBlocked, adBlockEnabled]);
+
+  // عداد صارم جداً يتوقف عند الخروج
   useEffect(() => {
     let interval: any;
     if (hasStarted && !isPaused && !document.hidden && count > 0) {
@@ -89,6 +90,7 @@ export default function WaitingPage() {
     return () => clearInterval(interval);
   }, [hasStarted, isPaused, count]);
 
+  // مراقبة التبويبات
   useEffect(() => {
     const handleVisibility = () => { if (document.hidden) setIsPaused(true); };
     document.addEventListener("visibilitychange", handleVisibility);
@@ -147,7 +149,7 @@ export default function WaitingPage() {
       {/* 1. إعلان Native علوي (يظهر فوراً) */}
       <div className="w-full max-w-md mt-8 px-4 min-h-[180px]">
         <p className="text-[8px] text-slate-400 font-bold uppercase mb-2 text-center tracking-widest">Advertisement</p>
-        <div id="container-2d3972df0bb6c3a953e851d40cd3285a" ref={nativeTopRef} className="rounded-3xl overflow-hidden shadow-sm border border-slate-100 bg-white"></div>
+        <div id={`container-${ADS_CONFIG.NATIVE_ID}`} ref={nativeTopRef} className="rounded-3xl overflow-hidden shadow-sm border border-slate-100 bg-white min-h-[150px]"></div>
       </div>
 
       {/* الكارت الرئيسي للعداد */}
@@ -172,7 +174,7 @@ export default function WaitingPage() {
         )}
       </div>
 
-      {/* محتوى وهمي طويل جداً */}
+      {/* محتوى وهمي طويل جداً لإجبار الزائر على السكرول */}
       <div className="max-w-md w-full px-8 mt-20 space-y-16 text-center">
         <div className="space-y-4">
           <h3 className="font-black text-slate-800 uppercase text-sm tracking-widest">Cloud Encryption Active</h3>
@@ -182,9 +184,10 @@ export default function WaitingPage() {
         {/* 2. بانر مربع 300x250 في منتصف الصفحة */}
         <div className="flex flex-col items-center py-10">
           <p className="text-slate-300 text-[8px] font-black uppercase mb-4 tracking-[0.5em]">Sponsored Content</p>
-          <div className="rounded-[2.5rem] overflow-hidden shadow-2xl border-8 border-white bg-white" ref={bannerRef}></div>
+          <div className="rounded-[2.5rem] overflow-hidden shadow-2xl border-8 border-white bg-white min-h-[250px] min-w-[300px]" ref={bannerRef}></div>
         </div>
 
+        {/* أقسام إضافية لتطويل الصفحة */}
         <div className="space-y-6">
           <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest">Security Logs</h4>
           <div className="bg-slate-900 p-6 rounded-3xl font-mono text-[10px] text-green-500 text-left space-y-2 shadow-inner">
@@ -196,12 +199,6 @@ export default function WaitingPage() {
           </div>
         </div>
 
-        {/* 3. إعلان Native سفلي (إضافي للربح) */}
-        <div className="w-full min-h-[180px] py-10">
-          <p className="text-[8px] text-slate-400 font-bold uppercase mb-4 text-center tracking-widest">Recommended for you</p>
-          <div id="container-native-bottom" ref={nativeBottomRef} className="rounded-3xl overflow-hidden shadow-sm border border-slate-100 bg-white"></div>
-        </div>
-
         <div className="grid grid-cols-2 gap-4">
           <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
             <p className="text-blue-500 font-black text-xl">1.2M</p>
@@ -211,6 +208,11 @@ export default function WaitingPage() {
             <p className="text-green-500 font-black text-xl">99.9%</p>
             <p className="text-[8px] font-bold uppercase text-slate-400">Uptime</p>
           </div>
+        </div>
+
+        <div className="bg-blue-600 p-8 rounded-[2.5rem] text-white text-left shadow-xl">
+          <h4 className="font-black uppercase text-xs mb-2">Why ExtraLink?</h4>
+          <p className="text-[10px] leading-relaxed opacity-90">We provide the most secure environment for file sharing. Our servers are distributed globally to ensure the fastest response times for our users in Asia, Europe, and the Middle East.</p>
         </div>
 
         <p className="text-[10px] text-slate-300 leading-loose pb-20">
