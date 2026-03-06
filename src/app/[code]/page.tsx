@@ -10,15 +10,14 @@ export default function WaitingPage() {
   const [step, setStep] = useState(1);
   const [isFinalPage, setIsFinalPage] = useState(false);
   const [count, setCount] = useState(15);
-  const [isPaused, setIsPaused] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isBlocked, setIsBlocked] = useState(false);
   const [adBlockEnabled, setAdBlockEnabled] = useState(false);
-  const [showAds, setShowAds] = useState(false);
+  const [showRedText, setShowRedText] = useState(false); // لإظهار النص الأحمر
 
+  const bannerRef = useRef<HTMLDivElement>(null);
   const nativeTopRef = useRef<HTMLDivElement>(null);
-  const bannerMiddleRef = useRef<HTMLDivElement>(null);
   const nativeBottomRef = useRef<HTMLDivElement>(null);
 
   const ADS_CONFIG = {
@@ -29,21 +28,22 @@ export default function WaitingPage() {
     BANNER_300_ID: "595231c2d8c14bc458ea69e3fcc8d37e"
   };
 
-  const injectAllAds = () => {
-    if (nativeTopRef.current && nativeTopRef.current.innerHTML === "") {
+  // وظيفة حقن الإعلانات فوراً
+  const injectAds = () => {
+    if (nativeTopRef.current && !nativeTopRef.current.innerHTML) {
       const s = document.createElement('script');
       s.src = `https://pl28859679.effectivegatecpm.com/${ADS_CONFIG.NATIVE_ID}/invoke.js`;
       s.async = true; s.setAttribute('data-cfasync', 'false');
       nativeTopRef.current.appendChild(s);
     }
-    if (bannerMiddleRef.current && bannerMiddleRef.current.innerHTML === "") {
+    if (bannerRef.current && !bannerRef.current.innerHTML) {
       const conf = document.createElement('script');
       conf.innerHTML = `atOptions = { 'key' : '${ADS_CONFIG.BANNER_300_ID}', 'format' : 'iframe', 'height' : 250, 'width' : 300, 'params' : {} };`;
       const scr = document.createElement('script');
       scr.src = `https://www.highperformanceformat.com/${ADS_CONFIG.BANNER_300_ID}/invoke.js`;
-      bannerMiddleRef.current.appendChild(conf); bannerMiddleRef.current.appendChild(scr);
+      bannerRef.current.appendChild(conf); bannerRef.current.appendChild(scr);
     }
-    if (nativeBottomRef.current && nativeBottomRef.current.innerHTML === "") {
+    if (nativeBottomRef.current && !nativeBottomRef.current.innerHTML) {
       const s = document.createElement('script');
       s.src = `https://pl28859679.effectivegatecpm.com/${ADS_CONFIG.NATIVE_ID}/invoke.js`;
       s.async = true; s.setAttribute('data-cfasync', 'false');
@@ -70,34 +70,46 @@ export default function WaitingPage() {
       } catch (err) { setLoading(false); }
     };
     initPage();
-    setTimeout(() => { setShowAds(true); injectAllAds(); }, 100);
+    injectAds(); // حقن الإعلانات فوراً
   }, [code]);
 
+  // عداد صارم: لا يتوقف إلا إذا خرج الزائر من التبويب
   useEffect(() => {
     let interval: any;
-    if (hasStarted && !isPaused && !document.hidden && count > 0) {
-      interval = setInterval(() => { setCount((prev) => prev - 1); }, 1000);
+    if (hasStarted && !document.hidden && count > 0) {
+      interval = setInterval(() => {
+        setCount((prev) => prev - 1);
+      }, 1000);
     }
     return () => clearInterval(interval);
-  }, [hasStarted, isPaused, count]);
+  }, [hasStarted, count]);
 
-  const handleStartInteraction = () => {
+  const handleStart = () => {
     if (!hasStarted) {
       setHasStarted(true);
       window.open(ADS_CONFIG.SMARTLINK, '_blank');
     }
-    setIsPaused(false);
   };
 
-  const handleNext = () => {
+  const handleNext = (e: any) => {
+    e.stopPropagation(); // منع تداخل الضغطات
     if (step % 2 !== 0) { window.open(ADS_CONFIG.SMARTLINK, '_blank'); }
-    setIsPaused(true);
-    if (step < linkData.page_count) { setStep(prev => prev + 1); setCount(15); } 
-    else { setIsFinalPage(true); setCount(5); }
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    
+    if (step < linkData.page_count) {
+      setStep(prev => prev + 1);
+      setCount(15);
+      setShowRedText(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+      setIsFinalPage(true);
+      setCount(5);
+      setShowRedText(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
-  const handleGetLink = async () => {
+  const handleGetLink = async (e: any) => {
+    e.stopPropagation();
     const ipRes = await fetch('https://api.ipify.org?format=json');
     const { ip } = await ipRes.json();
     await supabase.rpc('record_visit_and_pay', { target_link_id: linkData.id, target_user_id: linkData.user_id, visitor_ip: ip });
@@ -110,17 +122,19 @@ export default function WaitingPage() {
   if (isBlocked) return <div className="min-h-screen bg-slate-950 flex items-center justify-center text-red-500 p-10 text-center font-bold text-2xl uppercase">Daily Limit Reached! 🛑</div>;
 
   return (
-    <div onClick={handleStartInteraction} className="min-h-screen bg-slate-50 flex flex-col items-center relative font-sans overflow-x-hidden cursor-pointer pb-40">
+    <div onClick={handleStart} className="min-h-screen bg-slate-50 flex flex-col items-center relative font-sans overflow-x-hidden cursor-pointer pb-40">
       
+      {/* سكريبتات Adsterra */}
       <Script src={ADS_CONFIG.SOCIAL_BAR} strategy="afterInteractive" />
       <Script src={ADS_CONFIG.POPUNDER} strategy="afterInteractive" />
 
-      {(!hasStarted || isPaused) && (
+      {/* طبقة البداية */}
+      {!hasStarted && (
         <div className="fixed inset-0 z-[100] bg-slate-900/95 backdrop-blur-xl flex items-center justify-center p-6">
           <div className="bg-white p-12 rounded-[3.5rem] text-center shadow-2xl border-8 border-blue-500 max-w-xs w-full animate-pulse">
             <span className="text-7xl mb-6 block">👆</span>
             <h2 className="text-3xl font-black text-slate-800 uppercase mb-2 tracking-tighter">Verify</h2>
-            <p className="text-slate-500 font-bold text-sm">Click anywhere to continue</p>
+            <p className="text-slate-500 font-bold text-sm">Click anywhere to start</p>
           </div>
         </div>
       )}
@@ -130,8 +144,8 @@ export default function WaitingPage() {
       </header>
 
       {/* 1. إعلان Native علوي */}
-      <div className="w-full max-w-md mt-6 px-4">
-        <div id={`container-${ADS_CONFIG.NATIVE_ID}-top`} ref={nativeTopRef} className="rounded-3xl overflow-hidden shadow-lg border border-slate-100 bg-white min-h-[160px]"></div>
+      <div className="w-full max-w-md mt-6 px-4 min-h-[160px]">
+        <div id={`container-${ADS_CONFIG.NATIVE_ID}-top`} ref={nativeTopRef} className="rounded-3xl overflow-hidden shadow-lg border border-slate-100 bg-white"></div>
       </div>
 
       {/* الكارت الرئيسي للعداد */}
@@ -139,12 +153,13 @@ export default function WaitingPage() {
         <div className="absolute top-0 left-0 w-full h-2 bg-slate-100">
           <div className="h-full bg-blue-600 transition-all duration-1000" style={{ width: `${(count/15)*100}%` }}></div>
         </div>
+        
         <div className="mb-8">
           <span className="bg-blue-50 text-blue-600 text-[10px] font-black px-5 py-2 rounded-full uppercase tracking-widest border border-blue-100">
             {isFinalPage ? 'Finalizing Link' : `Step ${step} of ${linkData.page_count}`}
           </span>
         </div>
-        
+
         {count > 0 ? (
           <div className="py-10">
             <div className="text-9xl font-black text-slate-800 tabular-nums leading-none tracking-tighter">{count}</div>
@@ -153,13 +168,18 @@ export default function WaitingPage() {
         ) : (
           <div className="py-10 space-y-4">
             {/* الزر الوهمي */}
-            <button className="w-full bg-slate-100 text-slate-400 font-black py-6 rounded-[2rem] text-2xl uppercase tracking-tighter cursor-default">
+            <button 
+              onClick={(e) => { e.stopPropagation(); setShowRedText(true); }}
+              className="w-full bg-blue-600 text-white font-black py-7 rounded-[2.5rem] text-2xl uppercase tracking-tighter shadow-xl active:scale-95"
+            >
               CONTINUE
             </button>
-            {/* النص الأحمر الإرشادي */}
-            <p className="text-red-600 font-black text-sm animate-bounce uppercase tracking-tighter">
-              👇 Scroll down for Next Page 👇
-            </p>
+            {/* النص الأحمر */}
+            {showRedText && (
+              <p className="text-red-600 font-black text-sm animate-bounce uppercase tracking-tighter">
+                👇 Scroll down to find Next Page 👇
+              </p>
+            )}
           </div>
         )}
       </div>
@@ -183,7 +203,7 @@ export default function WaitingPage() {
         {/* 2. بانر مربع 300x250 في منتصف الصفحة */}
         <div className="flex flex-col items-center py-10">
           <p className="text-slate-300 text-[7px] font-black uppercase mb-4 tracking-[0.5em]">Sponsored Content</p>
-          <div className="rounded-[3rem] overflow-hidden shadow-2xl border-[12px] border-white bg-white min-h-[250px] min-w-[300px]" ref={bannerMiddleRef}></div>
+          <div className="rounded-[3rem] overflow-hidden shadow-2xl border-[12px] border-white bg-white min-h-[250px] min-w-[300px]" ref={bannerRef}></div>
         </div>
 
         <div className="space-y-6">
@@ -203,22 +223,17 @@ export default function WaitingPage() {
           <div id={`container-${ADS_CONFIG.NATIVE_ID}-bottom`} ref={nativeBottomRef} className="rounded-3xl overflow-hidden shadow-lg border border-slate-100 bg-white min-h-[160px]"></div>
         </div>
 
-        {/* الزر الحقيقي (يظهر فقط بعد انتهاء العداد) */}
+        {/* الزر الحقيقي (يظهر فقط في الأسفل بعد انتهاء العداد) */}
         {count === 0 && (
-          <div className="pt-10 animate-fadeIn">
+          <div className="pt-10 pb-20 animate-fadeIn">
             <button 
-              onClick={(e) => { e.stopPropagation(); isFinalPage ? handleGetLink() : handleNext(); }} 
+              onClick={isFinalPage ? handleGetLink : handleNext} 
               className={`w-full text-white font-black py-8 rounded-[2.5rem] shadow-2xl transition-all active:scale-95 text-3xl uppercase tracking-tighter ${isFinalPage ? 'bg-green-500 shadow-green-200' : 'bg-blue-600 shadow-blue-200'}`}
             >
               {isFinalPage ? 'Get Link Now 🚀' : 'Next Page →'}
             </button>
           </div>
         )}
-
-        <div className="bg-blue-600 p-10 rounded-[3rem] text-white text-left shadow-2xl relative overflow-hidden">
-          <h4 className="font-black uppercase text-sm mb-4 tracking-tighter">Why ExtraLink?</h4>
-          <p className="text-xs leading-relaxed opacity-90 font-medium">We provide the most secure environment for file sharing. Our servers are distributed globally to ensure the fastest response times.</p>
-        </div>
       </div>
 
       <footer className="mt-20 opacity-20 grayscale font-black text-[8px] tracking-[0.5em] text-center px-10 pb-10">
