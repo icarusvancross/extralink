@@ -15,9 +15,8 @@ export default function WaitingPage() {
   const [loading, setLoading] = useState(true);
   const [isBlocked, setIsBlocked] = useState(false);
   const [adBlockEnabled, setAdBlockEnabled] = useState(false);
-  const [showAds, setShowAds] = useState(false);
 
-  const bannerRef = useRef<HTMLDivElement>(null);
+  const banner300Ref = useRef<HTMLDivElement>(null);
   const nativeRef = useRef<HTMLDivElement>(null);
 
   const ADS_CONFIG = {
@@ -28,25 +27,31 @@ export default function WaitingPage() {
     BANNER_300_ID: "595231c2d8c14bc458ea69e3fcc8d37e"
   };
 
-  // وظيفة حقن الإعلانات
-  const injectAds = () => {
-    if (bannerRef.current && !bannerRef.current.innerHTML) {
-      const s = document.createElement('script');
-      s.innerHTML = `atOptions = { 'key' : '${ADS_CONFIG.BANNER_300_ID}', 'format' : 'iframe', 'height' : 250, 'width' : 300, 'params' : {} };`;
+  // وظيفة حقن الإعلانات فوراً عند تحميل الصفحة
+  const injectAdsImmediately = () => {
+    // 1. حقن البانر المربع 300x250
+    if (banner300Ref.current && !banner300Ref.current.innerHTML) {
+      const conf = document.createElement('script');
+      conf.innerHTML = `atOptions = { 'key' : '${ADS_CONFIG.BANNER_300_ID}', 'format' : 'iframe', 'height' : 250, 'width' : 300, 'params' : {} };`;
       const scr = document.createElement('script');
       scr.src = `https://www.highperformanceformat.com/${ADS_CONFIG.BANNER_300_ID}/invoke.js`;
-      bannerRef.current.appendChild(s); bannerRef.current.appendChild(scr);
+      banner300Ref.current.appendChild(conf);
+      banner300Ref.current.appendChild(scr);
     }
+
+    // 2. حقن الـ Native Banner
     if (nativeRef.current && !nativeRef.current.innerHTML) {
       const scr = document.createElement('script');
       scr.src = `https://pl28859679.effectivegatecpm.com/${ADS_CONFIG.NATIVE_ID}/invoke.js`;
-      scr.async = true; scr.setAttribute('data-cfasync', 'false');
+      scr.async = true;
+      scr.setAttribute('data-cfasync', 'false');
       nativeRef.current.appendChild(scr);
     }
   };
 
   useEffect(() => {
     const initPage = async () => {
+      // فحص AdBlock
       const testAd = document.createElement('div');
       testAd.innerHTML = '&nbsp;'; testAd.className = 'adsbox';
       document.body.appendChild(testAd);
@@ -63,11 +68,13 @@ export default function WaitingPage() {
         else { setLinkData(data); setLoading(false); }
       } catch (err) { setLoading(false); }
     };
+    
     initPage();
-    setTimeout(() => { setShowAds(true); injectAds(); }, 1000);
+    // تحميل الإعلانات فوراً بمجرد جاهزية الصفحة
+    injectAdsImmediately();
   }, [code]);
 
-  // نظام العداد الصارم جداً
+  // عداد صارم يتوقف عند الخروج
   useEffect(() => {
     let interval: any;
     if (hasStarted && !isPaused && !document.hidden && count > 0) {
@@ -78,7 +85,7 @@ export default function WaitingPage() {
     return () => clearInterval(interval);
   }, [hasStarted, isPaused, count]);
 
-  // مراقبة الخروج من الصفحة
+  // مراقبة التبويبات
   useEffect(() => {
     const handleVisibility = () => { if (document.hidden) setIsPaused(true); };
     document.addEventListener("visibilitychange", handleVisibility);
@@ -88,7 +95,7 @@ export default function WaitingPage() {
   const handleStartInteraction = () => {
     if (!hasStarted) {
       setHasStarted(true);
-      window.open(ADS_CONFIG.SMARTLINK, '_blank');
+      window.open(ADS_CONFIG.SMARTLINK, '_blank'); // فتح أول Popunder عند أول لمسة
     }
     setIsPaused(false);
   };
@@ -116,19 +123,16 @@ export default function WaitingPage() {
   return (
     <div onClick={handleStartInteraction} className="min-h-screen bg-slate-50 flex flex-col items-center relative font-sans overflow-x-hidden cursor-pointer pb-20">
       
-      {showAds && (
-        <>
-          <Script src={ADS_CONFIG.SOCIAL_BAR} strategy="afterInteractive" />
-          <Script src={ADS_CONFIG.POPUNDER} strategy="afterInteractive" />
-        </>
-      )}
+      {/* سكريبتات Adsterra التلقائية (Social Bar & Popunder) */}
+      <Script src={ADS_CONFIG.SOCIAL_BAR} strategy="afterInteractive" />
+      <Script src={ADS_CONFIG.POPUNDER} strategy="afterInteractive" />
 
       {(!hasStarted || isPaused) && (
         <div className="fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-lg flex items-center justify-center p-6">
           <div className="bg-white p-10 rounded-[3rem] text-center shadow-2xl border-4 border-blue-500 max-w-xs w-full">
             <span className="text-6xl mb-4 block animate-bounce">👆</span>
             <h2 className="text-2xl font-black text-slate-800 uppercase mb-2">Verify Identity</h2>
-            <p className="text-slate-500 text-sm font-bold">Click anywhere to continue the security check</p>
+            <p className="text-slate-500 text-sm font-bold">Click anywhere to start the security check</p>
           </div>
         </div>
       )}
@@ -137,12 +141,15 @@ export default function WaitingPage() {
         <h1 className="text-2xl font-black text-blue-600 italic tracking-tighter">ExtraLink</h1>
       </header>
 
-      {/* مساحة إعلانية علوية ضخمة */}
-      <div className="w-full max-w-md h-40 bg-slate-200 my-8 flex items-center justify-center border-2 border-dashed border-slate-300 rounded-3xl mx-4">
-        <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Premium Ad Space #1</p>
+      {/* 1. إعلان Native علوي (يظهر فوراً) */}
+      <div className="w-full max-w-md mt-8 px-4 min-h-[150px]">
+        <div id="container-2d3972df0bb6c3a953e851d40cd3285a" ref={nativeRef} className="rounded-3xl overflow-hidden shadow-sm border border-slate-100">
+           {/* سيتم حقن الإعلان هنا فوراً */}
+        </div>
       </div>
 
-      <div className="bg-white p-10 rounded-[3rem] shadow-2xl max-w-md w-full text-center border border-slate-100 z-10 mx-4 relative overflow-hidden">
+      {/* الكارت الرئيسي للعداد */}
+      <div className="bg-white p-10 rounded-[3rem] shadow-2xl max-w-md w-full text-center border border-slate-100 z-10 mx-4 mt-10 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-1 bg-slate-100">
           <div className="h-full bg-blue-600 transition-all duration-1000" style={{ width: `${(count/15)*100}%` }}></div>
         </div>
@@ -159,7 +166,7 @@ export default function WaitingPage() {
               {count}
             </div>
             <p className="text-slate-400 font-black mt-6 uppercase text-[10px] tracking-[0.3em] animate-pulse">
-              Security Scan in progress...
+              {document.hidden ? "Timer Paused" : "Security Scan..."}
             </p>
           </div>
         ) : (
@@ -172,18 +179,21 @@ export default function WaitingPage() {
         )}
       </div>
 
-      {/* إعلان Native (طويل) */}
-      <div className="w-full max-w-md mt-12 px-4 min-h-[200px]" ref={nativeRef}>
-         {!showAds && <div className="h-48 bg-slate-100 rounded-[2.5rem] animate-pulse" />}
-      </div>
-
-      {/* محتوى وهمي لزيادة الطول */}
-      <div className="max-w-md w-full px-8 mt-20 space-y-10 text-center">
+      {/* محتوى وهمي طويل جداً لإجبار الزائر على السكرول */}
+      <div className="max-w-md w-full px-8 mt-20 space-y-12 text-center">
         <div className="space-y-4">
           <h3 className="font-black text-slate-800 uppercase text-sm tracking-widest">Cloud Encryption Active</h3>
-          <p className="text-xs text-slate-400 leading-relaxed font-medium">Your connection is being routed through our secure servers in Frankfurt, Germany. This process ensures that the destination link is safe from malware and automated bots.</p>
+          <p className="text-xs text-slate-400 leading-relaxed font-medium">Your connection is being routed through our secure servers. This process ensures that the destination link is safe from malware and automated bots.</p>
         </div>
-        
+
+        {/* 2. بانر مربع 300x250 في منتصف الصفحة (يظهر فوراً) */}
+        <div className="flex flex-col items-center">
+          <p className="text-slate-300 text-[8px] font-black uppercase mb-4 tracking-[0.5em]">Sponsored Content</p>
+          <div className="rounded-[2.5rem] overflow-hidden shadow-xl border-8 border-white" ref={banner300Ref}>
+             {/* سيتم حقن البانر هنا فوراً */}
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 gap-4">
           <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex items-center justify-between">
             <span className="text-[10px] font-black text-slate-400 uppercase">Status</span>
@@ -194,14 +204,10 @@ export default function WaitingPage() {
             <span className="text-blue-500 font-black text-xs uppercase">AES-256 Bit</span>
           </div>
         </div>
-      </div>
 
-      {/* بانر مربع (300x250) في الأسفل جداً */}
-      <div className="mt-20 flex flex-col items-center w-full px-4">
-        <p className="text-slate-300 text-[8px] font-black uppercase mb-4 tracking-[0.5em]">Sponsored Content</p>
-        <div className="rounded-[2.5rem] overflow-hidden shadow-xl border-8 border-white" ref={bannerRef}>
-           {!showAds && <div className="w-[300px] h-[250px] bg-slate-100 animate-pulse" />}
-        </div>
+        <p className="text-[10px] text-slate-300 leading-loose">
+          By using ExtraLink, you agree to our terms of service. We use advanced algorithms to detect fraudulent activity. Any attempt to bypass this security check will result in a permanent IP ban.
+        </p>
       </div>
 
       <footer className="mt-32 opacity-20 grayscale font-black text-[8px] tracking-[0.5em] text-center px-10 pb-10">
