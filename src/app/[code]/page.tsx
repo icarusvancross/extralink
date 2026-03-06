@@ -12,6 +12,7 @@ export default function WaitingPage() {
   const [count, setCount] = useState(15);
   const [isPaused, setIsPaused] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
+  const [showRealButton, setShowRealButton] = useState(false); // إخفاء الزر الحقيقي
   const [loading, setLoading] = useState(true);
   const [isBlocked, setIsBlocked] = useState(false);
   const [adBlockEnabled, setAdBlockEnabled] = useState(false);
@@ -28,26 +29,27 @@ export default function WaitingPage() {
     BANNER_300_ID: "595231c2d8c14bc458ea69e3fcc8d37e"
   };
 
-  // وظيفة حقن الإعلانات فوراً
+  // وظيفة حقن الإعلانات الإجبارية
   const injectAds = () => {
-    if (nativeTopRef.current && !nativeTopRef.current.innerHTML) {
-      const s = document.createElement('script');
-      s.src = `https://pl28859679.effectivegatecpm.com/${ADS_CONFIG.NATIVE_ID}/invoke.js`;
-      s.async = true; s.setAttribute('data-cfasync', 'false');
-      nativeTopRef.current.appendChild(s);
-    }
-    if (bannerMiddleRef.current && !bannerMiddleRef.current.innerHTML) {
+    const scripts = [
+      { id: `container-${ADS_CONFIG.NATIVE_ID}`, src: `https://pl28859679.effectivegatecpm.com/${ADS_CONFIG.NATIVE_ID}/invoke.js`, ref: nativeTopRef },
+      { id: `container-native-bottom`, src: `https://pl28859679.effectivegatecpm.com/${ADS_CONFIG.NATIVE_ID}/invoke.js`, ref: nativeBottomRef }
+    ];
+
+    scripts.forEach(s => {
+      if (s.ref.current && s.ref.current.innerHTML === "") {
+        const scr = document.createElement('script');
+        scr.src = s.src; scr.async = true; scr.setAttribute('data-cfasync', 'false');
+        s.ref.current.appendChild(scr);
+      }
+    });
+
+    if (bannerMiddleRef.current && bannerMiddleRef.current.innerHTML === "") {
       const conf = document.createElement('script');
       conf.innerHTML = `atOptions = { 'key' : '${ADS_CONFIG.BANNER_300_ID}', 'format' : 'iframe', 'height' : 250, 'width' : 300, 'params' : {} };`;
       const scr = document.createElement('script');
       scr.src = `https://www.highperformanceformat.com/${ADS_CONFIG.BANNER_300_ID}/invoke.js`;
       bannerMiddleRef.current.appendChild(conf); bannerMiddleRef.current.appendChild(scr);
-    }
-    if (nativeBottomRef.current && !nativeBottomRef.current.innerHTML) {
-      const s = document.createElement('script');
-      s.src = `https://pl28859679.effectivegatecpm.com/${ADS_CONFIG.NATIVE_ID}/invoke.js`;
-      s.async = true; s.setAttribute('data-cfasync', 'false');
-      nativeBottomRef.current.appendChild(s);
     }
   };
 
@@ -70,10 +72,10 @@ export default function WaitingPage() {
       } catch (err) { setLoading(false); }
     };
     initPage();
-    injectAds(); // حقن الإعلانات فوراً
+    injectAds();
   }, [code]);
 
-  // عداد صارم
+  // عداد ذكي يستأنف عند العودة للصفحة
   useEffect(() => {
     let interval: any;
     if (hasStarted && !isPaused && !document.hidden && count > 0) {
@@ -82,14 +84,16 @@ export default function WaitingPage() {
     return () => clearInterval(interval);
   }, [hasStarted, isPaused, count]);
 
-  // مراقبة التبويبات (توقف فقط إذا خرج من المتصفح)
+  // مستشعر العودة للموقع (Focus)
   useEffect(() => {
-    const handleVisibility = () => {
-      if (document.hidden) setIsPaused(true);
-      else setIsPaused(false); // يستأنف تلقائياً عند العودة
+    const handleFocus = () => setIsPaused(false);
+    const handleBlur = () => setIsPaused(true);
+    window.addEventListener("focus", handleFocus);
+    window.addEventListener("blur", handleBlur);
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("blur", handleBlur);
     };
-    document.addEventListener("visibilitychange", handleVisibility);
-    return () => document.removeEventListener("visibilitychange", handleVisibility);
   }, []);
 
   const handleStartInteraction = () => {
@@ -100,17 +104,24 @@ export default function WaitingPage() {
     setIsPaused(false);
   };
 
+  const handleFakeContinue = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowRealButton(true); // إظهار الزر الحقيقي في الأسفل
+  };
+
   const handleNext = () => {
     if (step % 2 !== 0) { window.open(ADS_CONFIG.SMARTLINK, '_blank'); }
     if (step < linkData.page_count) {
       setStep(prev => prev + 1);
       setCount(15);
-      setHasStarted(false); // يطلب ضغطة جديدة في كل صفحة لزيادة الـ Pop-ups
+      setHasStarted(false);
+      setShowRealButton(false);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
       setIsFinalPage(true);
       setCount(5);
       setHasStarted(false);
+      setShowRealButton(false);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
@@ -124,7 +135,7 @@ export default function WaitingPage() {
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white font-black animate-pulse uppercase tracking-widest">ExtraLink Loading...</div>;
-  if (adBlockEnabled) return <div className="min-h-screen bg-red-600 flex items-center justify-center text-white p-10 text-center font-bold">PLEASE DISABLE ADBLOCK!</div>;
+  if (adBlockEnabled) return <div className="min-h-screen bg-red-600 flex items-center justify-center text-white p-10 text-center font-bold uppercase">Please Disable AdBlock!</div>;
   if (isBlocked) return <div className="min-h-screen bg-slate-950 flex items-center justify-center text-red-500 p-10 text-center font-bold text-2xl uppercase">Daily Limit Reached! 🛑</div>;
 
   return (
@@ -133,9 +144,8 @@ export default function WaitingPage() {
       <Script src={ADS_CONFIG.SOCIAL_BAR} strategy="afterInteractive" />
       <Script src={ADS_CONFIG.POPUNDER} strategy="afterInteractive" />
 
-      {/* طبقة التحقق (تظهر في بداية كل صفحة) */}
       {(!hasStarted || isPaused) && (
-        <div className="fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-lg flex items-center justify-center p-6">
+        <div className="fixed inset-0 z-[100] bg-slate-900/95 backdrop-blur-xl flex items-center justify-center p-6">
           <div className="bg-white p-12 rounded-[3.5rem] text-center shadow-2xl border-8 border-blue-500 max-w-xs w-full">
             <span className="text-7xl mb-6 block animate-bounce">👆</span>
             <h2 className="text-3xl font-black text-slate-800 uppercase mb-2 tracking-tighter">Verify</h2>
@@ -150,7 +160,7 @@ export default function WaitingPage() {
 
       {/* 1. إعلان Native علوي */}
       <div className="w-full max-w-md mt-6 px-4">
-        <div id={`container-${ADS_CONFIG.NATIVE_ID}-top`} ref={nativeTopRef} className="rounded-3xl overflow-hidden shadow-lg border border-slate-100 bg-white min-h-[160px]"></div>
+        <div id={`container-${ADS_CONFIG.NATIVE_ID}`} ref={nativeTopRef} className="rounded-3xl overflow-hidden shadow-lg border border-slate-100 bg-white min-h-[160px]"></div>
       </div>
 
       {/* الكارت الرئيسي للعداد */}
@@ -171,13 +181,17 @@ export default function WaitingPage() {
           </div>
         ) : (
           <div className="py-10 space-y-4">
-            {/* الزر الوهمي (لا يفعل شيء سوى التنبيه) */}
-            <button className="w-full bg-slate-100 text-slate-400 font-black py-6 rounded-[2rem] text-2xl uppercase tracking-tighter cursor-default">
+            <button 
+              onClick={handleFakeContinue}
+              className="w-full bg-blue-600 text-white font-black py-6 rounded-[2rem] text-2xl uppercase tracking-tighter shadow-xl active:scale-95 transition-all"
+            >
               CONTINUE
             </button>
-            <p className="text-red-600 font-black text-sm animate-bounce uppercase tracking-tighter">
-              👇 Scroll down for Next Page 👇
-            </p>
+            {showRealButton && (
+              <p className="text-red-600 font-black text-sm animate-bounce uppercase tracking-tighter">
+                👇 Scroll down to the bottom 👇
+              </p>
+            )}
           </div>
         )}
       </div>
@@ -198,7 +212,7 @@ export default function WaitingPage() {
           </div>
         </div>
 
-        {/* 2. بانر مربع 300x250 في منتصف الصفحة */}
+        {/* 2. بانر مربع 300x250 */}
         <div className="flex flex-col items-center py-10">
           <p className="text-slate-300 text-[7px] font-black uppercase mb-4 tracking-[0.5em]">Sponsored Content</p>
           <div className="rounded-[3rem] overflow-hidden shadow-2xl border-[12px] border-white bg-white min-h-[250px] min-w-[300px]" ref={bannerMiddleRef}></div>
@@ -218,11 +232,11 @@ export default function WaitingPage() {
         {/* 3. إعلان Native سفلي */}
         <div className="w-full px-4 py-10">
           <p className="text-[7px] text-slate-400 font-black uppercase mb-4 text-center tracking-[0.3em]">Recommended for you</p>
-          <div id={`container-${ADS_CONFIG.NATIVE_ID}-bottom`} ref={nativeBottomRef} className="rounded-3xl overflow-hidden shadow-lg border border-slate-100 bg-white min-h-[160px]"></div>
+          <div id="container-native-bottom" ref={nativeBottomRef} className="rounded-3xl overflow-hidden shadow-lg border border-slate-100 bg-white min-h-[160px]"></div>
         </div>
 
-        {/* الزر الحقيقي (يظهر فقط في الأسفل بعد انتهاء العداد) */}
-        {count === 0 && (
+        {/* الزر الحقيقي (يظهر فقط بعد ضغط Continue) */}
+        {showRealButton && (
           <div className="pt-10 pb-20 animate-fadeIn">
             <button 
               onClick={(e) => { e.stopPropagation(); isFinalPage ? handleGetLink() : handleNext(); }} 
