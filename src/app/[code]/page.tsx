@@ -12,15 +12,14 @@ export default function WaitingPage() {
   const [count, setCount] = useState(15);
   const [isPaused, setIsPaused] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
-  const [showRealButton, setShowRealButton] = useState(false);
+  const [showRealButton, setShowRealButton] = useState(false); // للتحكم في ظهور الزر السفلي
   const [loading, setLoading] = useState(true);
   const [isBlocked, setIsBlocked] = useState(false);
   const [adBlockEnabled, setAdBlockEnabled] = useState(false);
 
-  // مراجع الأماكن الإعلانية
-  const adContainerTop = useRef<HTMLDivElement>(null);
-  const adContainerMiddle = useRef<HTMLDivElement>(null);
-  const adContainerBottom = useRef<HTMLDivElement>(null);
+  const nativeTopRef = useRef<HTMLDivElement>(null);
+  const bannerMiddleRef = useRef<HTMLDivElement>(null);
+  const nativeBottomRef = useRef<HTMLDivElement>(null);
 
   const ADS_CONFIG = {
     SOCIAL_BAR: "https://pl28859100.effectivegatecpm.com/fe/4c/47/fe4c47fb58ff46e2395b8f4a2ec3ceac.js",
@@ -30,36 +29,35 @@ export default function WaitingPage() {
     BANNER_300_ID: "595231c2d8c14bc458ea69e3fcc8d37e"
   };
 
-  // وظيفة حقن الإعلانات (طريقة يدوية صارمة)
-  const forceLoadAds = () => {
+  // وظيفة حقن الإعلانات (الكود الذي أثبت نجاحه في الظهور)
+  const injectAllAds = () => {
     // 1. حقن Native العلوي
-    if (adContainerTop.current && adContainerTop.current.innerHTML === "") {
+    if (nativeTopRef.current && nativeTopRef.current.innerHTML === "") {
       const s = document.createElement('script');
       s.src = `https://pl28859679.effectivegatecpm.com/${ADS_CONFIG.NATIVE_ID}/invoke.js`;
       s.async = true; s.setAttribute('data-cfasync', 'false');
-      adContainerTop.current.appendChild(s);
+      nativeTopRef.current.appendChild(s);
     }
     // 2. حقن البانر المربع في المنتصف
-    if (adContainerMiddle.current && adContainerMiddle.current.innerHTML === "") {
+    if (bannerMiddleRef.current && bannerMiddleRef.current.innerHTML === "") {
       const conf = document.createElement('script');
       conf.innerHTML = `atOptions = { 'key' : '${ADS_CONFIG.BANNER_300_ID}', 'format' : 'iframe', 'height' : 250, 'width' : 300, 'params' : {} };`;
       const scr = document.createElement('script');
       scr.src = `https://www.highperformanceformat.com/${ADS_CONFIG.BANNER_300_ID}/invoke.js`;
-      adContainerMiddle.current.appendChild(conf);
-      adContainerMiddle.current.appendChild(scr);
+      bannerMiddleRef.current.appendChild(conf);
+      bannerMiddleRef.current.appendChild(scr);
     }
     // 3. حقن Native السفلي
-    if (adContainerBottom.current && adContainerBottom.current.innerHTML === "") {
+    if (nativeBottomRef.current && nativeBottomRef.current.innerHTML === "") {
       const s = document.createElement('script');
       s.src = `https://pl28859679.effectivegatecpm.com/${ADS_CONFIG.NATIVE_ID}/invoke.js`;
       s.async = true; s.setAttribute('data-cfasync', 'false');
-      adContainerBottom.current.appendChild(s);
+      nativeBottomRef.current.appendChild(s);
     }
   };
 
   useEffect(() => {
     const initPage = async () => {
-      // فحص AdBlock
       const testAd = document.createElement('div');
       testAd.innerHTML = '&nbsp;'; testAd.className = 'adsbox';
       document.body.appendChild(testAd);
@@ -77,20 +75,21 @@ export default function WaitingPage() {
       } catch (err) { setLoading(false); }
     };
     initPage();
-    // تشغيل الحقن فوراً
-    setTimeout(forceLoadAds, 500);
+    setTimeout(injectAllAds, 100);
   }, [code]);
 
-  // عداد صارم
+  // عداد صارم يتوقف عند الخروج أو فقدان التركيز
   useEffect(() => {
     let interval: any;
     if (hasStarted && !isPaused && !document.hidden && count > 0) {
-      interval = setInterval(() => { setCount((prev) => prev - 1); }, 1000);
+      interval = setInterval(() => {
+        setCount((prev) => prev - 1);
+      }, 1000);
     }
     return () => clearInterval(interval);
   }, [hasStarted, isPaused, count]);
 
-  // مستشعر العودة للموقع
+  // مستشعر التركيز (لضمان استمرار العداد عند العودة من الإعلان)
   useEffect(() => {
     const handleFocus = () => setIsPaused(false);
     const handleBlur = () => setIsPaused(true);
@@ -136,20 +135,19 @@ export default function WaitingPage() {
   };
 
   if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white font-black animate-pulse uppercase tracking-widest">ExtraLink Loading...</div>;
-  if (adBlockEnabled) return <div className="min-h-screen bg-red-600 flex items-center justify-center text-white p-10 text-center font-bold uppercase tracking-tighter">Please Disable AdBlock!</div>;
+  if (adBlockEnabled) return <div className="min-h-screen bg-red-600 flex items-center justify-center text-white p-10 text-center font-bold">PLEASE DISABLE ADBLOCK!</div>;
   if (isBlocked) return <div className="min-h-screen bg-slate-950 flex items-center justify-center text-red-500 p-10 text-center font-bold text-2xl uppercase">Daily Limit Reached! 🛑</div>;
 
   return (
     <div onClick={handleStartInteraction} className="min-h-screen bg-slate-50 flex flex-col items-center relative font-sans overflow-x-hidden cursor-pointer pb-40">
       
-      {/* سكريبتات Adsterra العائمة */}
       <Script src={ADS_CONFIG.SOCIAL_BAR} strategy="afterInteractive" />
       <Script src={ADS_CONFIG.POPUNDER} strategy="afterInteractive" />
 
       {(!hasStarted || isPaused) && (
         <div className="fixed inset-0 z-[100] bg-slate-900/95 backdrop-blur-xl flex items-center justify-center p-6">
-          <div className="bg-white p-12 rounded-[3.5rem] text-center shadow-2xl border-8 border-blue-500 max-w-xs w-full">
-            <span className="text-7xl mb-6 block animate-bounce">👆</span>
+          <div className="bg-white p-12 rounded-[3.5rem] text-center shadow-2xl border-8 border-blue-500 max-w-xs w-full animate-pulse">
+            <span className="text-7xl mb-6 block">👆</span>
             <h2 className="text-3xl font-black text-slate-800 uppercase mb-2 tracking-tighter">Verify</h2>
             <p className="text-slate-500 font-bold text-sm">Click anywhere to continue</p>
           </div>
@@ -160,10 +158,10 @@ export default function WaitingPage() {
         <h1 className="text-2xl font-black text-blue-600 italic tracking-tighter">ExtraLink</h1>
       </header>
 
-      {/* 1. إعلان Native علوي (مكان مخصص) */}
+      {/* 1. إعلان Native علوي */}
       <div className="w-full max-w-md mt-6 px-4">
         <p className="text-[7px] text-slate-400 font-black uppercase mb-2 text-center tracking-[0.3em]">Advertisement</p>
-        <div id={`container-${ADS_CONFIG.NATIVE_ID}-top`} ref={adContainerTop} className="rounded-3xl overflow-hidden shadow-lg border border-slate-100 bg-white min-h-[160px]"></div>
+        <div id={`container-${ADS_CONFIG.NATIVE_ID}-top`} ref={nativeTopRef} className="rounded-3xl overflow-hidden shadow-lg border border-slate-100 bg-white min-h-[160px]"></div>
       </div>
 
       {/* الكارت الرئيسي للعداد */}
@@ -184,9 +182,10 @@ export default function WaitingPage() {
           </div>
         ) : (
           <div className="py-10 space-y-4">
+            {/* الزر الوهمي الذي يظهر النص الأحمر */}
             <button 
               onClick={(e) => { e.stopPropagation(); setShowRealButton(true); }}
-              className="w-full bg-blue-600 text-white font-black py-6 rounded-[2rem] text-2xl uppercase tracking-tighter shadow-xl active:scale-95 transition-all"
+              className="w-full bg-blue-600 text-white font-black py-7 rounded-[2.5rem] text-2xl uppercase tracking-tighter shadow-xl active:scale-95 transition-all"
             >
               CONTINUE
             </button>
@@ -201,6 +200,7 @@ export default function WaitingPage() {
 
       {/* محتوى وهمي طويل جداً */}
       <div className="max-w-md w-full px-8 mt-20 space-y-20 text-center">
+        
         <div className="space-y-6">
           <h3 className="font-black text-slate-800 uppercase text-sm tracking-widest">Server Status</h3>
           <div className="grid grid-cols-2 gap-4">
@@ -215,10 +215,10 @@ export default function WaitingPage() {
           </div>
         </div>
 
-        {/* 2. بانر مربع 300x250 (مكان مخصص) */}
+        {/* 2. بانر مربع 300x250 في منتصف الصفحة */}
         <div className="flex flex-col items-center py-10">
           <p className="text-slate-300 text-[7px] font-black uppercase mb-4 tracking-[0.5em]">Sponsored Content</p>
-          <div id="ad-middle-banner" ref={adContainerMiddle} className="rounded-[3rem] overflow-hidden shadow-2xl border-[12px] border-white bg-white min-h-[250px] min-w-[300px]"></div>
+          <div id="container-banner-middle" ref={bannerMiddleRef} className="rounded-[3rem] overflow-hidden shadow-2xl border-[12px] border-white bg-white min-h-[250px] min-w-[300px]"></div>
         </div>
 
         <div className="space-y-6">
@@ -229,16 +229,17 @@ export default function WaitingPage() {
             <p>{`> Bypassing firewall... OK`}</p>
             <p>{`> Encrypting destination URL...`}</p>
             <p>{`> Connection: STABLE`}</p>
+            <p className="animate-pulse">{`> Waiting for user confirmation...`}</p>
           </div>
         </div>
 
-        {/* 3. إعلان Native سفلي (مكان مخصص) */}
+        {/* 3. إعلان Native سفلي */}
         <div className="w-full px-4 py-10">
           <p className="text-[7px] text-slate-400 font-black uppercase mb-4 text-center tracking-[0.3em]">Recommended for you</p>
-          <div id={`container-${ADS_CONFIG.NATIVE_ID}-bottom`} ref={adContainerBottom} className="rounded-3xl overflow-hidden shadow-lg border border-slate-100 bg-white min-h-[160px]"></div>
+          <div id={`container-${ADS_CONFIG.NATIVE_ID}-bottom`} ref={nativeBottomRef} className="rounded-3xl overflow-hidden shadow-lg border border-slate-100 bg-white min-h-[160px]"></div>
         </div>
 
-        {/* الزر الحقيقي (يظهر فقط بعد ضغط Continue) */}
+        {/* الزر الحقيقي (يظهر فقط في الأسفل بعد ضغط Continue) */}
         {showRealButton && (
           <div className="pt-10 pb-20 animate-fadeIn">
             <button 
@@ -249,6 +250,12 @@ export default function WaitingPage() {
             </button>
           </div>
         )}
+
+        <div className="bg-blue-600 p-10 rounded-[3rem] text-white text-left shadow-2xl relative overflow-hidden">
+          <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
+          <h4 className="font-black uppercase text-sm mb-4 tracking-tighter">Why ExtraLink?</h4>
+          <p className="text-xs leading-relaxed opacity-90 font-medium">We provide the most secure environment for file sharing. Our servers are distributed globally to ensure the fastest response times.</p>
+        </div>
       </div>
 
       <footer className="mt-20 opacity-20 grayscale font-black text-[8px] tracking-[0.5em] text-center px-10 pb-10">
