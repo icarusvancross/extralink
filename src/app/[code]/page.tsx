@@ -1,11 +1,10 @@
 "use client";
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { supabase } from '../lib/supabase'; 
 
 export default function WaitingPage() {
   const { code } = useParams();
-  const [isMounted, setIsMounted] = useState(false);
   const [linkData, setLinkData] = useState<any>(null);
   const [step, setStep] = useState(1);
   const [isFinalPage, setIsFinalPage] = useState(false);
@@ -13,9 +12,13 @@ export default function WaitingPage() {
   const [hasStarted, setHasStarted] = useState(false);
   const [showRealButton, setShowRealButton] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isMounted, setIsMounted] = useState(false);
+
+  const bannerRef = useRef<HTMLDivElement>(null);
 
   const SMARTLINK = "https://www.effectivegatecpm.com/rcbjyg6w?key=4b7c5edb9470ea073ea974701e4201aa";
 
+  // 1. صمام أمان: التأكد من تحميل الصفحة بالكامل قبل تشغيل أي شيء
   useEffect(() => {
     setIsMounted(true);
     const fetchLink = async () => {
@@ -28,19 +31,43 @@ export default function WaitingPage() {
     fetchLink();
   }, [code]);
 
+  // 2. نظام العداد (معزول تماماً عن الإعلانات لمنع الانهيار)
   useEffect(() => {
     let interval: any;
-    if (hasStarted && count > 0 && !document.hidden) {
-      interval = setInterval(() => setCount(prev => prev - 1), 1000);
+    if (isMounted && hasStarted && count > 0 && !document.hidden) {
+      interval = setInterval(() => {
+        setCount((prev) => prev - 1);
+      }, 1000);
     }
     return () => clearInterval(interval);
-  }, [hasStarted, count]);
+  }, [isMounted, hasStarted, count]);
 
-  if (!isMounted) return null;
+  // 3. وظيفة حقن الإعلانات (تُستدعى فقط بعد التفاعل لضمان الاستقرار)
+  const injectAds = () => {
+    try {
+      // حقن Popunder
+      const s1 = document.createElement('script');
+      s1.innerHTML = `(function(vuyhd){ var d = document, s = d.createElement('script'), l = d.scripts[d.scripts.length - 1]; s.settings = vuyhd || {}; s.src = "\/\/plasticdamage.com\/cmDY9.6qbJ2K5hlCS\/WNQr9gNUjGgz0nOTDdYXwxNRSW0-2FOKDhQP4SNljVA\/5U"; s.async = true; s.referrerPolicy = 'no-referrer-when-downgrade'; l.parentNode.insertBefore(s, l); })({})`;
+      document.body.appendChild(s1);
+
+      // حقن In-page Push
+      const s2 = document.createElement('script');
+      s2.innerHTML = `(function(kcqxs){ var d = document, s = d.createElement('script'), l = d.scripts[d.scripts.length - 1]; s.settings = kcqxs || {}; s.src = "\/\/conventionalresponse.com\/beX.VJsdd\/GUlr0\/YdWBcV\/teJmT9\/uoZbUBlLkqP\/ThYG4yNCD\/g_2wMrjhkotyNnjRg\/0LOfDWY\/z\/MgwV"; s.async = true; s.referrerPolicy = 'no-referrer-when-downgrade'; l.parentNode.insertBefore(s, l); })({})`;
+      document.body.appendChild(s2);
+
+      // حقن البانر المربع في مكانه المخصص
+      if (bannerRef.current) {
+        const s3 = document.createElement('script');
+        s3.innerHTML = `(function(iuwr){ var d = document, s = d.createElement('script'), l = d.scripts[d.scripts.length - 1]; s.settings = iuwr || {}; s.src = "\/\/conventionalresponse.com\/bnX.VgsVdLG_l\/0bYUWtcO\/seVm\/9UuxZrU\/lCknPhTRY\/4LNpDcgv2CMrT\/M\/tzNSjmgD0CO\/DQYixbN\/wy"; s.async = true; s.referrerPolicy = 'no-referrer-when-downgrade'; l.parentNode.insertBefore(s, l); })({})`;
+        bannerRef.current.appendChild(s3);
+      }
+    } catch (e) { console.error("Ad injection blocked to prevent crash"); }
+  };
 
   const handleStart = () => {
     if (!hasStarted) {
       setHasStarted(true);
+      injectAds(); // تشغيل الإعلانات الآن فقط
       window.open(SMARTLINK, '_blank');
     }
   };
@@ -65,26 +92,18 @@ export default function WaitingPage() {
     window.location.href = linkData.original_url;
   };
 
-  if (loading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white font-bold animate-pulse">SECURE CONNECTION INITIALIZING...</div>;
+  if (!isMounted || loading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white font-bold">Loading...</div>;
 
   return (
-    <div onClick={handleStart} className="min-h-screen bg-slate-50 flex flex-col items-center font-sans cursor-pointer pb-40 relative overflow-x-hidden">
+    <div onClick={handleStart} className="min-h-screen bg-slate-50 flex flex-col items-center font-sans cursor-pointer pb-40 relative">
       
-      {/* حقن الإعلانات فقط بعد التفاعل لضمان استقرار المتصفح */}
-      {hasStarted && (
-        <div dangerouslySetInnerHTML={{ __html: `
-          <script>(function(vuyhd){ var d = document, s = d.createElement('script'), l = d.scripts[d.scripts.length - 1]; s.settings = vuyhd || {}; s.src = "\/\/plasticdamage.com\/cmDY9.6qbJ2K5hlCS\/WNQr9gNUjGgz0nOTDdYXwxNRSW0-2FOKDhQP4SNljVA\/5U"; s.async = true; s.referrerPolicy = 'no-referrer-when-downgrade'; l.parentNode.insertBefore(s, l); })({})</script>
-          <script>(function(kcqxs){ var d = document, s = d.createElement('script'), l = d.scripts[d.scripts.length - 1]; s.settings = kcqxs || {}; s.src = "\/\/conventionalresponse.com\/beX.VJsdd\/GUlr0\/YdWBcV\/teJmT9\/uoZbUBlLkqP\/ThYG4yNCD\/g_2wMrjhkotyNnjRg\/0LOfDWY\/z\/MgwV"; s.async = true; s.referrerPolicy = 'no-referrer-when-downgrade'; l.parentNode.insertBefore(s, l); })({})</script>
-          <script>(function(zse){ var d = document, s = d.createElement('script'), l = d.scripts[d.scripts.length - 1]; s.settings = zse || {}; s.src = "\/\/conventionalresponse.com\/b.XiVysXdIGClx0lYuW_cE\/-eJm\/9Eu\/ZfU_lHk\/PzToY\/4ENjDugV2\/NTDmUPtPNljrgg0AOoDqYJ0yOKQN"; s.async = true; s.referrerPolicy = 'no-referrer-when-downgrade'; l.parentNode.insertBefore(s, l); })({})</script>
-        `}} />
-      )}
-
+      {/* واجهة البداية */}
       {(!hasStarted) && (
-        <div className="fixed inset-0 z-[100] bg-slate-900/95 flex items-center justify-center p-6 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[100] bg-slate-900/95 flex items-center justify-center p-6">
           <div className="bg-white p-12 rounded-[3.5rem] text-center shadow-2xl border-8 border-blue-500 animate-pulse max-w-xs w-full">
             <span className="text-7xl mb-6 block">👆</span>
-            <h2 className="text-3xl font-black text-slate-800 uppercase tracking-tighter">Verify</h2>
-            <p className="text-slate-500 font-bold">Click anywhere to start the security scan</p>
+            <h2 className="text-3xl font-black text-slate-800 uppercase">Verify</h2>
+            <p className="text-slate-500 font-bold">Click anywhere to continue</p>
           </div>
         </div>
       )}
@@ -93,10 +112,8 @@ export default function WaitingPage() {
         <h1 className="text-2xl font-black text-blue-600 italic tracking-tighter">ExtraLink</h1>
       </header>
 
+      {/* كارت العداد */}
       <div className="bg-white p-10 rounded-[3rem] shadow-2xl max-w-md w-full text-center border border-slate-100 z-10 mx-4 mt-10 relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-2 bg-slate-100">
-          <div className="h-full bg-blue-600 transition-all duration-1000" style={{ width: `${(count/15)*100}%` }}></div>
-        </div>
         <div className="mb-8">
           <span className="bg-blue-50 text-blue-600 text-[10px] font-black px-5 py-2 rounded-full uppercase tracking-widest border border-blue-100">
             {isFinalPage ? 'Final Step' : `Step ${step} of ${linkData.page_count}`}
@@ -111,17 +128,19 @@ export default function WaitingPage() {
         )}
       </div>
 
-      {/* بانر HilltopAds - يظهر فقط بعد التفاعل */}
-      {hasStarted && (
-        <div className="mt-20 flex flex-col items-center px-4">
+      {/* محتوى وهمي لتطويل الصفحة */}
+      <div className="max-w-md w-full px-8 mt-20 space-y-10 text-center">
+        <h3 className="font-black text-slate-800 uppercase text-sm tracking-widest">Cloud Encryption Active</h3>
+        <p className="text-xs text-slate-400 leading-relaxed">Your connection is secure. Please wait for the verification to complete.</p>
+        
+        {/* مكان البانر المربع - سيتم حقنه يدوياً */}
+        <div className="py-10 flex flex-col items-center">
           <p className="text-slate-300 text-[7px] font-black uppercase mb-4 tracking-[0.5em]">Sponsored Content</p>
-          <div className="rounded-[3rem] overflow-hidden shadow-2xl border-[12px] border-white bg-white min-h-[250px] min-w-[300px]" 
-               dangerouslySetInnerHTML={{ __html: `
-            <script>(function(iuwr){ var d = document, s = d.createElement('script'), l = d.scripts[d.scripts.length - 1]; s.settings = iuwr || {}; s.src = "\/\/conventionalresponse.com\/bnX.VgsVdLG_l\/0bYUWtcO\/seVm\/9UuxZrU\/lCknPhTRY\/4LNpDcgv2CMrT\/M\/tzNSjmgD0CO\/DQYixbN\/wy"; s.async = true; s.referrerPolicy = 'no-referrer-when-downgrade'; l.parentNode.insertBefore(s, l); })({})</script>
-          `}} />
+          <div ref={bannerRef} className="rounded-[3rem] overflow-hidden shadow-2xl border-[12px] border-white bg-white min-h-[250px] min-w-[300px]"></div>
         </div>
-      )}
+      </div>
 
+      {/* الزر الحقيقي في الأسفل */}
       {showRealButton && (
         <div className="pt-20 pb-20 px-6 w-full max-w-md">
           <button onClick={(e) => { e.stopPropagation(); isFinalPage ? handleGetLink() : handleNext(); }} className={`w-full text-white font-black py-8 rounded-[2.5rem] shadow-2xl transition-all active:scale-95 text-3xl uppercase ${isFinalPage ? 'bg-green-500' : 'bg-blue-600'}`}>
@@ -131,7 +150,7 @@ export default function WaitingPage() {
       )}
 
       <footer className="mt-32 opacity-20 grayscale font-black text-[8px] tracking-[0.5em] text-center px-10 pb-10">
-        EXTRALINK SECURE PROTOCOL v4.2.0-STABLE
+        EXTRALINK SECURE PROTOCOL v4.2.0
       </footer>
     </div>
   );
