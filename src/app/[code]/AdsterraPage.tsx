@@ -20,27 +20,30 @@ export default function AdsterraPage({ step, totalSteps, onNext }: any) {
   };
 
   useEffect(() => {
-    const inject = () => {
+    const injectAds = () => {
       try {
         // حقن Native العلوي
         if (adTopRef.current && adTopRef.current.innerHTML === "") {
           const scr = document.createElement('script');
           scr.src = `https://pl28859679.effectivegatecpm.com/${ADS.NATIVE_ID}/invoke.js`;
-          scr.async = true; scr.setAttribute('data-cfasync', 'false');
+          scr.async = true;
           adTopRef.current.appendChild(scr);
         }
-        // حقن البانر المربع في المنتصف
+        // حقن البانر المربع
         if (adMiddleRef.current && adMiddleRef.current.innerHTML === "") {
+          const container = document.createElement('div');
+          container.id = `adsterra-${ADS.BANNER_ID}`;
           const conf = document.createElement('script');
           conf.innerHTML = `atOptions = { 'key' : '${ADS.BANNER_ID}', 'format' : 'iframe', 'height' : 250, 'width' : 300, 'params' : {} };`;
           const scr = document.createElement('script');
           scr.src = `https://www.highperformanceformat.com/${ADS.BANNER_ID}/invoke.js`;
-          adMiddleRef.current.appendChild(conf); adMiddleRef.current.appendChild(scr);
+          adMiddleRef.current.appendChild(conf);
+          adMiddleRef.current.appendChild(scr);
         }
-      } catch (e) { console.error("Ad injection failed", e); }
+      } catch (e) { console.error("Adsterra error caught"); }
     };
-    const t = setTimeout(inject, 800);
-    return () => clearTimeout(t);
+    const timer = setTimeout(injectAds, 1000);
+    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -70,9 +73,9 @@ export default function AdsterraPage({ step, totalSteps, onNext }: any) {
         <h1 className="text-2xl font-black text-blue-600 italic tracking-tighter">ExtraLink</h1>
       </header>
 
-      {/* إعلان Native علوي - أعطيناه طول 200px لضمان الظهور */}
+      {/* Native Ad Container - Fixed Height */}
       <div className="w-full max-w-md mt-6 px-4 min-h-[200px]">
-        <div id={`container-${ADS.NATIVE_ID}`} ref={adTopRef} className="rounded-3xl overflow-hidden shadow-lg border border-slate-100 bg-white min-h-[180px]"></div>
+        <div ref={adTopRef} className="rounded-3xl overflow-hidden shadow-lg border border-slate-100 bg-white min-h-[180px]"></div>
       </div>
 
       <div className="bg-white p-10 rounded-[3rem] shadow-2xl max-w-md w-full text-center border border-slate-100 z-10 mx-4 mt-10 relative overflow-hidden">
@@ -98,8 +101,8 @@ export default function AdsterraPage({ step, totalSteps, onNext }: any) {
       </div>
 
       <div className="max-w-md w-full px-8 mt-20 space-y-20 text-center">
-        {/* بانر Adsterra المربع 300x250 */}
-        <div className="flex flex-col items-center py-10">
+        {/* Banner Ad Container - Fixed Height */}
+        <div className="flex flex-col items-center py-10 min-h-[300px]">
           <p className="text-slate-300 text-[7px] font-black uppercase mb-4 tracking-[0.5em]">Sponsored Content</p>
           <div ref={adMiddleRef} className="rounded-[3rem] overflow-hidden shadow-2xl border-[12px] border-white bg-white min-h-[250px] min-w-[300px]"></div>
         </div>

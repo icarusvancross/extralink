@@ -28,7 +28,7 @@ export default function HilltopPage({ step, totalSteps, onNext }: any) {
         });
       } catch (e) {}
     };
-    setTimeout(inject, 800);
+    setTimeout(inject, 1000);
   }, []);
 
   useEffect(() => {
@@ -46,7 +46,7 @@ export default function HilltopPage({ step, totalSteps, onNext }: any) {
           <div className="bg-white p-12 rounded-[3.5rem] text-center shadow-2xl border-8 border-blue-500 max-w-xs w-full animate-pulse">
             <span className="text-7xl mb-6 block">👆</span>
             <h2 className="text-3xl font-black text-slate-800 uppercase mb-2">Verify</h2>
-            <p className="text-slate-500 font-bold text-sm">Click to continue (HilltopAds Mode)</p>
+            <p className="text-slate-500 font-bold text-sm">Click to continue</p>
           </div>
         </div>
       )}
@@ -78,7 +78,7 @@ export default function HilltopPage({ step, totalSteps, onNext }: any) {
       </div>
 
       <div className="max-w-md w-full px-8 mt-20 space-y-20 text-center">
-        <div className="flex flex-col items-center py-10">
+        <div className="flex flex-col items-center py-10 min-h-[300px]">
           <p className="text-slate-300 text-[7px] font-black uppercase mb-4 tracking-[0.5em]">Sponsored Content</p>
           <div ref={bannerRef} className="rounded-[3rem] overflow-hidden shadow-2xl border-[12px] border-white bg-white min-h-[250px] min-w-[300px]"></div>
         </div>

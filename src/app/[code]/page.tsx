@@ -31,12 +31,11 @@ export default function MainManager() {
   }, [code]);
 
   const handleNextStep = () => {
-    // إذا كان الخطوة الحالية أقل من الإجمالي، زد الخطوة
-    if (step < linkData.page_count) {
-      setStep(prev => prev + 1);
-    } else {
-      // إذا وصلنا لآخر صفحة، اذهب للصفحة النهائية
+    // إصلاح منطق العداد: إذا كانت الخطوة الحالية هي الأخيرة، اذهب لـ Final
+    if (step >= linkData.page_count) {
       setIsFinal(true);
+    } else {
+      setStep(prev => prev + 1);
     }
   };
 
@@ -53,11 +52,9 @@ export default function MainManager() {
 
   if (isFinal) return <FinalPage onComplete={handleFinalComplete} />;
 
-  // التبديل الصارم: فردي = Adsterra، زوجي = Hilltop
-  // نستخدم key={step} لإجبار الصفحة على إعادة التحميل بالكامل ومسح الإعلانات القديمة
   if (step % 2 !== 0) {
-    return <AdsterraPage key={`step-${step}`} step={step} totalSteps={linkData.page_count} onNext={handleNextStep} />;
+    return <AdsterraPage key={`adsterra-${step}`} step={step} totalSteps={linkData.page_count} onNext={handleNextStep} />;
   } else {
-    return <HilltopPage key={`step-${step}`} step={step} totalSteps={linkData.page_count} onNext={handleNextStep} />;
+    return <HilltopPage key={`hilltop-${step}`} step={step} totalSteps={linkData.page_count} onNext={handleNextStep} />;
   }
 }
