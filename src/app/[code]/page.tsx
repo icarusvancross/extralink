@@ -13,54 +13,61 @@ export default function WaitingPage() {
   const [isPaused, setIsPaused] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
   const [showRealButton, setShowRealButton] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false); // شاشة التحميل بين الصفحات
   const [loading, setLoading] = useState(true);
   const [isBlocked, setIsBlocked] = useState(false);
   const [adBlockEnabled, setAdBlockEnabled] = useState(false);
 
-  const adTopRef = useRef<HTMLDivElement>(null);
-  const adMiddleRef = useRef<HTMLDivElement>(null);
-  const adBottomRef = useRef<HTMLDivElement>(null);
-  const adsInjected = useRef(false);
+  const adAreaRef = useRef<HTMLDivElement>(null);
 
   const ADS_CONFIG = {
-    // Adsterra
-    ADSTERRA_SOCIAL: "https://pl28859100.effectivegatecpm.com/fe/4c/47/fe4c47fb58ff46e2395b8f4a2ec3ceac.js",
     ADSTERRA_SMART: "https://www.effectivegatecpm.com/rcbjyg6w?key=4b7c5edb9470ea073ea974701e4201aa",
+    ADSTERRA_SOCIAL: "https://pl28859100.effectivegatecpm.com/fe/4c/47/fe4c47fb58ff46e2395b8f4a2ec3ceac.js",
     ADSTERRA_NATIVE: "https://pl28859679.effectivegatecpm.com/2d3972df0bb6c3a953e851d40cd3285a/invoke.js",
-    // HilltopAds
+    ADSTERRA_BANNER_ID: "595231c2d8c14bc458ea69e3fcc8d37e",
     HILLTOP_POP: "//plasticdamage.com/cmDY9.6qbJ2K5hlCS/WNQr9gNUjGgz0nOTDdYXwxNRSW0-2FOKDhQP4SNljVA/5U",
     HILLTOP_BANNER: "//conventionalresponse.com/bnX.VgsVdLG_l/0bYUWtcO/seVm/9UuxZrU/lCknPhTRY/4LNpDcgv2CMrT/M/tzNSjmgD0CO/DQYixbN/wy",
     HILLTOP_INPAGE: "//conventionalresponse.com/beX.VJsdd/GUlr0/YdWBcV/teJmT9/uoZbUBlLkqP/ThYG4yNCD/g_2wMrjhkotyNnjRg/0LOfDWY/z/MgwV",
     HILLTOP_VIDEO: "//conventionalresponse.com/b.XiVysXdIGClx0lYuW_cE/-eJm/9Eu/ZfU_lHk/PzToY/4ENjDugV2/NTDmUPtPNljrgg0AOoDqYJ0yOKQN"
   };
 
-  // وظيفة حقن كل أنواع الإعلانات فوراً
-  const injectAllAds = () => {
-    if (adsInjected.current) return;
-    adsInjected.current = true;
+  // وظيفة حقن الإعلانات بناءً على رقم الصفحة
+  const injectAdsByStep = (currentStep: number) => {
+    if (!adAreaRef.current) return;
+    adAreaRef.current.innerHTML = ""; // تنظيف المنطقة تماماً
 
-    // 1. حقن البانرات الثابتة (Native & Banner)
-    const staticAds = [
-      { ref: adTopRef, src: ADS_CONFIG.ADSTERRA_NATIVE, isNative: true },
-      { ref: adMiddleRef, src: ADS_CONFIG.HILLTOP_BANNER, isNative: false },
-      { ref: adBottomRef, src: ADS_CONFIG.ADSTERRA_NATIVE, isNative: true }
-    ];
+    if (currentStep % 2 !== 0) {
+      // --- مملكة ADSTERRA (1, 3, 5) ---
+      const native = document.createElement('script');
+      native.src = ADS_CONFIG.ADSTERRA_NATIVE;
+      native.async = true; native.setAttribute('data-cfasync', 'false');
+      
+      const bannerConf = document.createElement('script');
+      bannerConf.innerHTML = `atOptions = { 'key' : '${ADS_CONFIG.ADSTERRA_BANNER_ID}', 'format' : 'iframe', 'height' : 250, 'width' : 300, 'params' : {} };`;
+      const bannerScr = document.createElement('script');
+      bannerScr.src = `https://www.highperformanceformat.com/${ADS_CONFIG.ADSTERRA_BANNER_ID}/invoke.js`;
 
-    staticAds.forEach(ad => {
-      if (ad.ref.current) {
-        const s = document.createElement('script');
-        s.src = ad.src; s.async = true;
-        if (ad.isNative) s.setAttribute('data-cfasync', 'false');
-        ad.ref.current.appendChild(s);
-      }
-    });
+      adAreaRef.current.appendChild(native);
+      adAreaRef.current.appendChild(bannerConf);
+      adAreaRef.current.appendChild(bannerScr);
+    } else {
+      // --- مملكة HILLTOPADS (2, 4, 6) ---
+      const banner = document.createElement('script');
+      banner.src = ADS_CONFIG.HILLTOP_BANNER;
+      banner.async = true;
 
-    // 2. حقن الإعلانات العائمة (In-page Push & Video Slider)
-    [ADS_CONFIG.HILLTOP_INPAGE, ADS_CONFIG.HILLTOP_VIDEO, ADS_CONFIG.HILLTOP_POP].forEach(src => {
-      const s = document.createElement('script');
-      s.src = src; s.async = true;
-      document.body.appendChild(s);
-    });
+      const inpage = document.createElement('script');
+      inpage.src = ADS_CONFIG.HILLTOP_INPAGE;
+      inpage.async = true;
+
+      const video = document.createElement('script');
+      video.src = ADS_CONFIG.HILLTOP_VIDEO;
+      video.async = true;
+
+      adAreaRef.current.appendChild(banner);
+      adAreaRef.current.appendChild(inpage);
+      adAreaRef.current.appendChild(video);
+    }
   };
 
   useEffect(() => {
@@ -82,19 +89,23 @@ export default function WaitingPage() {
       } catch (err) { setLoading(false); }
     };
     initPage();
-    injectAllAds(); // تشغيل الإعلانات فوراً
   }, [code]);
 
-  // عداد صارم
+  // إعادة حقن الإعلانات عند كل تغيير في الصفحة (Step)
+  useEffect(() => {
+    if (!isTransitioning && hasStarted) {
+      injectAdsByStep(step);
+    }
+  }, [step, isTransitioning, hasStarted]);
+
   useEffect(() => {
     let interval: any;
-    if (hasStarted && !isPaused && !document.hidden && count > 0) {
+    if (hasStarted && !isPaused && !isTransitioning && !document.hidden && count > 0) {
       interval = setInterval(() => { setCount((prev) => prev - 1); }, 1000);
     }
     return () => clearInterval(interval);
-  }, [hasStarted, isPaused, count]);
+  }, [hasStarted, isPaused, isTransitioning, count]);
 
-  // مستشعر التركيز (العودة التلقائية)
   useEffect(() => {
     const handleFocus = () => setIsPaused(false);
     const handleBlur = () => setIsPaused(true);
@@ -115,16 +126,24 @@ export default function WaitingPage() {
   };
 
   const handleNext = () => {
-    if (step % 2 !== 0) { window.open(ADS_CONFIG.ADSTERRA_SMART, '_blank'); }
-    if (step < linkData.page_count) {
-      setStep(prev => prev + 1); setCount(15);
-      setHasStarted(false); setShowRealButton(false);
+    // فتح Popunder في كل صفحة
+    window.open(step % 2 !== 0 ? ADS_CONFIG.ADSTERRA_SMART : ADS_CONFIG.ADSTERRA_SMART, '_blank');
+    
+    setIsTransitioning(true); // تشغيل شاشة التحميل
+    
+    setTimeout(() => {
+      if (step < linkData.page_count) {
+        setStep(prev => prev + 1);
+        setCount(15);
+      } else {
+        setIsFinalPage(true);
+        setCount(5);
+      }
+      setHasStarted(false);
+      setShowRealButton(false);
+      setIsTransitioning(false);
       window.scrollTo({ top: 0, behavior: 'smooth' });
-    } else {
-      setIsFinalPage(true); setCount(5);
-      setHasStarted(false); setShowRealButton(false);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+    }, 1000); // انتظار ثانية واحدة للتبديل
   };
 
   const handleGetLink = async () => {
@@ -135,15 +154,20 @@ export default function WaitingPage() {
     window.location.href = linkData.original_url;
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white font-black animate-pulse uppercase tracking-widest">ExtraLink Loading...</div>;
+  if (loading) return <div className="min-h-screen flex items-center justify-center bg-slate-950 text-blue-500 font-black animate-pulse">INITIALIZING SECURE CONNECTION...</div>;
+  if (isTransitioning) return <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white font-black animate-bounce uppercase tracking-widest">Syncing Ad Servers...</div>;
   if (adBlockEnabled) return <div className="min-h-screen bg-red-600 flex items-center justify-center text-white p-10 text-center font-bold uppercase">Please Disable AdBlock!</div>;
   if (isBlocked) return <div className="min-h-screen bg-slate-950 flex items-center justify-center text-red-500 p-10 text-center font-bold text-2xl uppercase">Daily Limit Reached! 🛑</div>;
 
   return (
     <div onClick={handleStartInteraction} className="min-h-screen bg-slate-50 flex flex-col items-center relative font-sans overflow-x-hidden cursor-pointer pb-40">
       
-      {/* سكريبت الـ Social Bar */}
-      <Script src={ADS_CONFIG.ADSTERRA_SOCIAL} strategy="afterInteractive" />
+      {/* سكريبتات عائمة تتبدل حسب الصفحة */}
+      {step % 2 !== 0 ? (
+        <Script src={ADS_CONFIG.ADSTERRA_SOCIAL} strategy="afterInteractive" key={`ad-social-${step}`} />
+      ) : (
+        <Script src={ADS_CONFIG.HILLTOP_POP} strategy="afterInteractive" key={`ad-pop-${step}`} />
+      )}
 
       {(!hasStarted || isPaused) && (
         <div className="fixed inset-0 z-[100] bg-slate-900/95 backdrop-blur-xl flex items-center justify-center p-6">
@@ -159,9 +183,9 @@ export default function WaitingPage() {
         <h1 className="text-2xl font-black text-blue-600 italic tracking-tighter">ExtraLink</h1>
       </header>
 
-      {/* 1. إعلان Native علوي */}
-      <div className="w-full max-w-md mt-6 px-4">
-        <div id="container-adsterra-native-top" ref={adTopRef} className="rounded-3xl overflow-hidden shadow-lg border border-slate-100 bg-white min-h-[160px]"></div>
+      {/* منطقة حقن الإعلانات الديناميكية (تتبدل كلياً في كل صفحة) */}
+      <div className="w-full max-w-md mt-6 px-4 space-y-10" ref={adAreaRef} key={`ad-container-${step}`}>
+        {/* هنا سيتم زرع إعلانات الشركة الحالية بقوة */}
       </div>
 
       {/* الكارت الرئيسي للعداد */}
@@ -191,20 +215,6 @@ export default function WaitingPage() {
       {/* محتوى وهمي طويل جداً */}
       <div className="max-w-md w-full px-8 mt-20 space-y-20 text-center">
         <div className="space-y-6">
-          <h3 className="font-black text-slate-800 uppercase text-sm tracking-widest">Server Status</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm"><p className="text-green-500 font-black text-2xl">99.9%</p><p className="text-[8px] font-bold uppercase text-slate-400">Uptime</p></div>
-            <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm"><p className="text-blue-500 font-black text-2xl">24/7</p><p className="text-[8px] font-bold uppercase text-slate-400">Support</p></div>
-          </div>
-        </div>
-
-        {/* 2. بانر HilltopAds المربع 300x250 */}
-        <div className="flex flex-col items-center py-10">
-          <p className="text-slate-300 text-[7px] font-black uppercase mb-4 tracking-[0.5em]">Sponsored Content</p>
-          <div id="hilltop-banner-middle" ref={adMiddleRef} className="rounded-[3rem] overflow-hidden shadow-2xl border-[12px] border-white bg-white min-h-[250px] min-w-[300px]"></div>
-        </div>
-
-        <div className="space-y-6">
           <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest">Live Security Logs</h4>
           <div className="bg-slate-900 p-8 rounded-[2.5rem] font-mono text-[10px] text-green-500 text-left space-y-3 shadow-2xl border border-slate-800">
             <p>{`> Initializing secure handshake...`}</p>
@@ -214,13 +224,7 @@ export default function WaitingPage() {
           </div>
         </div>
 
-        {/* 3. إعلان Native سفلي */}
-        <div className="w-full px-4 py-10">
-          <p className="text-[7px] text-slate-400 font-black uppercase mb-4 text-center tracking-[0.3em]">Recommended for you</p>
-          <div id="container-adsterra-native-bottom" ref={adBottomRef} className="rounded-3xl overflow-hidden shadow-lg border border-slate-100 bg-white min-h-[160px]"></div>
-        </div>
-
-        {/* الزر الحقيقي */}
+        {/* الزر الحقيقي (يظهر فقط في الأسفل بعد ضغط Continue) */}
         {showRealButton && (
           <div className="pt-10 pb-20 animate-fadeIn">
             <button onClick={(e) => { e.stopPropagation(); isFinalPage ? handleGetLink() : handleNext(); }} className={`w-full text-white font-black py-8 rounded-[2.5rem] shadow-2xl transition-all active:scale-95 text-3xl uppercase tracking-tighter ${isFinalPage ? 'bg-green-500 shadow-green-200' : 'bg-blue-600 shadow-blue-200'}`}>
@@ -228,6 +232,12 @@ export default function WaitingPage() {
             </button>
           </div>
         )}
+
+        <div className="bg-blue-600 p-10 rounded-[3rem] text-white text-left shadow-2xl relative overflow-hidden">
+          <div className="absolute -right-10 -top-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
+          <h4 className="font-black uppercase text-sm mb-4 tracking-tighter">Why ExtraLink?</h4>
+          <p className="text-xs leading-relaxed opacity-90 font-medium">We provide the most secure environment for file sharing. Our servers are distributed globally to ensure the fastest response times.</p>
+        </div>
       </div>
 
       <footer className="mt-20 opacity-20 grayscale font-black text-[8px] tracking-[0.5em] text-center px-10 pb-10">
