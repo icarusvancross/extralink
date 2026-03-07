@@ -1,6 +1,5 @@
 "use client";
 import { useState, useEffect, useRef } from 'react';
-import Script from 'next/script';
 
 export default function HilltopPage({ step, totalSteps, onNext }: any) {
   const [count, setCount] = useState(15);
@@ -18,17 +17,18 @@ export default function HilltopPage({ step, totalSteps, onNext }: any) {
 
   useEffect(() => {
     const inject = () => {
-      if (bannerRef.current && bannerRef.current.innerHTML === "") {
-        const s = document.createElement('script'); s.src = ADS.BANNER; s.async = true;
-        bannerRef.current.appendChild(s);
-      }
-      // حقن الـ In-page والـ Video في الـ body
-      [ADS.INPAGE, ADS.VIDEO, ADS.POPUNDER].forEach(src => {
-        const s = document.createElement('script'); s.src = src; s.async = true;
-        document.body.appendChild(s);
-      });
+      try {
+        if (bannerRef.current && bannerRef.current.innerHTML === "") {
+          const s = document.createElement('script'); s.src = ADS.BANNER; s.async = true;
+          bannerRef.current.appendChild(s);
+        }
+        [ADS.INPAGE, ADS.VIDEO, ADS.POPUNDER].forEach(src => {
+          const s = document.createElement('script'); s.src = src; s.async = true;
+          document.body.appendChild(s);
+        });
+      } catch (e) {}
     };
-    setTimeout(inject, 500);
+    setTimeout(inject, 800);
   }, []);
 
   useEffect(() => {
