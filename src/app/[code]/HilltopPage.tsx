@@ -1,52 +1,33 @@
 "use client";
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
+import Script from 'next/script';
 
 export default function HilltopPage({ step, totalSteps, onNext }: any) {
   const [count, setCount] = useState(15);
   const [hasStarted, setHasStarted] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
   const [showRealButton, setShowRealButton] = useState(false);
-  const bannerRef = useRef<HTMLDivElement>(null);
-
-  const ADS = {
-    POPUNDER: "//plasticdamage.com/cmDY9.6qbJ2K5hlCS/WNQr9gNUjGgz0nOTDdYXwxNRSW0-2FOKDhQP4SNljVA/5U",
-    BANNER: "//conventionalresponse.com/bnX.VgsVdLG_l/0bYUWtcO/seVm/9UuxZrU/lCknPhTRY/4LNpDcgv2CMrT/M/tzNSjmgD0CO/DQYixbN/wy",
-    INPAGE: "//conventionalresponse.com/beX.VJsdd/GUlr0/YdWBcV/teJmT9/uoZbUBlLkqP/ThYG4yNCD/g_2wMrjhkotyNnjRg/0LOfDWY/z/MgwV",
-    VIDEO: "//conventionalresponse.com/b.XiVysXdIGClx0lYuW_cE/-eJm/9Eu/ZfU_lHk/PzToY/4ENjDugV2/NTDmUPtPNljrgg0AOoDqYJ0yOKQN"
-  };
-
-  useEffect(() => {
-    const inject = () => {
-      try {
-        if (bannerRef.current && bannerRef.current.innerHTML === "") {
-          const s = document.createElement('script'); s.src = ADS.BANNER; s.async = true;
-          bannerRef.current.appendChild(s);
-        }
-        [ADS.INPAGE, ADS.VIDEO, ADS.POPUNDER].forEach(src => {
-          const s = document.createElement('script'); s.src = src; s.async = true;
-          document.body.appendChild(s);
-        });
-      } catch (e) {}
-    };
-    setTimeout(inject, 1000);
-  }, []);
+  const SMARTLINK = "https://www.effectivegatecpm.com/rcbjyg6w?key=4b7c5edb9470ea073ea974701e4201aa";
 
   useEffect(() => {
     let interval: any;
-    if (hasStarted && !isPaused && count > 0) {
+    if (hasStarted && count > 0) {
       interval = setInterval(() => setCount(prev => prev - 1), 1000);
     }
     return () => clearInterval(interval);
-  }, [hasStarted, isPaused, count]);
+  }, [hasStarted, count]);
 
   return (
-    <div onClick={() => { if(!hasStarted) setHasStarted(true); setIsPaused(false); }} className="min-h-screen bg-slate-50 flex flex-col items-center relative font-sans overflow-x-hidden cursor-pointer pb-40">
-      {(!hasStarted || isPaused) && (
+    <div onClick={() => { if(!hasStarted) { setHasStarted(true); window.open(SMARTLINK, '_blank'); } }} className="min-h-screen bg-slate-50 flex flex-col items-center relative font-sans overflow-x-hidden cursor-pointer pb-40">
+      {/* سكريبتات HilltopAds العائمة */}
+      <Script src="//conventionalresponse.com/beX.VJsdd/GUlr0/YdWBcV/teJmT9/uoZbUBlLkqP/ThYG4yNCD/g_2wMrjhkotyNnjRg/0LOfDWY/z/MgwV" strategy="afterInteractive" />
+      <Script src="//conventionalresponse.com/b.XiVysXdIGClx0lYuW_cE/-eJm/9Eu/ZfU_lHk/PzToY/4ENjDugV2/NTDmUPtPNljrgg0AOoDqYJ0yOKQN" strategy="afterInteractive" />
+
+      {(!hasStarted) && (
         <div className="fixed inset-0 z-[100] bg-slate-900/95 backdrop-blur-xl flex items-center justify-center p-6">
           <div className="bg-white p-12 rounded-[3.5rem] text-center shadow-2xl border-8 border-blue-500 max-w-xs w-full animate-pulse">
             <span className="text-7xl mb-6 block">👆</span>
-            <h2 className="text-3xl font-black text-slate-800 uppercase mb-2">Verify</h2>
-            <p className="text-slate-500 font-bold text-sm">Click to continue</p>
+            <h2 className="text-3xl font-black text-slate-800 uppercase mb-2 tracking-tighter">Verify</h2>
+            <p className="text-slate-500 font-bold text-sm">Click anywhere to continue</p>
           </div>
         </div>
       )}
@@ -71,16 +52,17 @@ export default function HilltopPage({ step, totalSteps, onNext }: any) {
           </div>
         ) : (
           <div className="py-10 space-y-4">
-            <button onClick={(e) => { e.stopPropagation(); setShowRealButton(true); }} className="w-full bg-blue-600 text-white font-black py-7 rounded-[2.5rem] text-2xl uppercase tracking-tighter shadow-xl active:scale-95 transition-all">CONTINUE</button>
+            <button onClick={(e) => { e.stopPropagation(); setShowRealButton(true); }} className="w-full bg-blue-600 text-white font-black py-7 rounded-[2.5rem] text-2xl uppercase shadow-xl active:scale-95 transition-all">CONTINUE</button>
             {showRealButton && <p className="text-red-600 font-black text-sm animate-bounce uppercase tracking-tighter">👇 Scroll down to the bottom 👇</p>}
           </div>
         )}
       </div>
 
       <div className="max-w-md w-full px-8 mt-20 space-y-20 text-center">
-        <div className="flex flex-col items-center py-10 min-h-[300px]">
+        {/* بانر HilltopAds المربع عبر Iframe */}
+        <div className="flex flex-col items-center py-10">
           <p className="text-slate-300 text-[7px] font-black uppercase mb-4 tracking-[0.5em]">Sponsored Content</p>
-          <div ref={bannerRef} className="rounded-[3rem] overflow-hidden shadow-2xl border-[12px] border-white bg-white min-h-[250px] min-w-[300px]"></div>
+          <iframe src="/ads/hilltop-banner.html" className="w-[320px] h-[270px] border-0 overflow-hidden rounded-3xl shadow-2xl"></iframe>
         </div>
 
         {showRealButton && (

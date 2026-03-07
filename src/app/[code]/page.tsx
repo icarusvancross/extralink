@@ -31,7 +31,6 @@ export default function MainManager() {
   }, [code]);
 
   const handleNextStep = () => {
-    // إصلاح منطق العداد: إذا كانت الخطوة الحالية هي الأخيرة، اذهب لـ Final
     if (step >= linkData.page_count) {
       setIsFinal(true);
     } else {
@@ -52,9 +51,10 @@ export default function MainManager() {
 
   if (isFinal) return <FinalPage onComplete={handleFinalComplete} />;
 
+  // التبديل الصارم باستخدام key={step} لقتل الصفحة القديمة تماماً
   if (step % 2 !== 0) {
-    return <AdsterraPage key={`adsterra-${step}`} step={step} totalSteps={linkData.page_count} onNext={handleNextStep} />;
+    return <AdsterraPage key={`step-${step}`} step={step} totalSteps={linkData.page_count} onNext={handleNextStep} />;
   } else {
-    return <HilltopPage key={`hilltop-${step}`} step={step} totalSteps={linkData.page_count} onNext={handleNextStep} />;
+    return <HilltopPage key={`step-${step}`} step={step} totalSteps={linkData.page_count} onNext={handleNextStep} />;
   }
 }
