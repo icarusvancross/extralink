@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { supabase } from '../lib/supabase'; 
-import AdsterraPage from './AdsterraPage'; // استيراد الغرفة الأولى
+import AdsterraPage from './AdsterraPage';
 
 export default function MainManager() {
   const { code } = useParams();
@@ -27,15 +27,15 @@ export default function MainManager() {
 
   const handleNextStep = () => {
     setStep(prev => prev + 1);
-    // هنا سنضيف لاحقاً منطق الانتقال لـ HilltopPage أو FinalPage
   };
 
-  if (loading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white font-black animate-pulse">LOADING EXTRALINK...</div>;
-  if (isBlocked) return <div className="min-h-screen bg-slate-950 flex items-center justify-center text-red-500 font-black p-10 text-center">DAILY LIMIT REACHED! 🛑</div>;
+  if (loading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center text-blue-500 font-black animate-pulse">INITIALIZING...</div>;
+  if (isBlocked) return <div className="min-h-screen bg-slate-950 flex items-center justify-center text-red-500 font-black p-10 text-center uppercase">Daily Limit Reached! 🛑</div>;
 
-  // حالياً سنعرض فقط AdsterraPage للتجربة
+  // حالياً سنعرض AdsterraPage للتجربة، وسنضيف HilltopAds في الخطوة القادمة
   return (
     <AdsterraPage 
+      key={`step-${step}`} // هذا السطر مهم جداً لإعادة تحميل الإعلانات
       step={step} 
       totalSteps={linkData.page_count} 
       onNext={handleNextStep} 

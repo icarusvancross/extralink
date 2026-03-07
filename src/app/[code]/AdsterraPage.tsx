@@ -7,6 +7,7 @@ export default function AdsterraPage({ step, totalSteps, onNext }: any) {
   const [hasStarted, setHasStarted] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [showRealButton, setShowRealButton] = useState(false);
+  
   const adTopRef = useRef<HTMLDivElement>(null);
   const adMiddleRef = useRef<HTMLDivElement>(null);
   const adBottomRef = useRef<HTMLDivElement>(null);
@@ -19,7 +20,7 @@ export default function AdsterraPage({ step, totalSteps, onNext }: any) {
     SMARTLINK: "https://www.effectivegatecpm.com/rcbjyg6w?key=4b7c5edb9470ea073ea974701e4201aa"
   };
 
-  // حقن إعلانات Adsterra بقوة
+  // وظيفة حقن الإعلانات الإجبارية
   useEffect(() => {
     const inject = () => {
       if (adTopRef.current) {
@@ -48,70 +49,112 @@ export default function AdsterraPage({ step, totalSteps, onNext }: any) {
     return () => clearInterval(interval);
   }, [hasStarted, isPaused, count]);
 
+  // مستشعر التركيز
+  useEffect(() => {
+    const handleFocus = () => setIsPaused(false);
+    const handleBlur = () => setIsPaused(true);
+    window.addEventListener("focus", handleFocus);
+    window.addEventListener("blur", handleBlur);
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("blur", handleBlur);
+    };
+  }, []);
+
   return (
-    <div onClick={() => { if(!hasStarted) { setHasStarted(true); window.open(ADS.SMARTLINK, '_blank'); } setIsPaused(false); }} className="min-h-screen bg-orange-50/30 flex flex-col items-center pb-40 cursor-pointer">
+    <div onClick={() => { if(!hasStarted) { setHasStarted(true); window.open(ADS.SMARTLINK, '_blank'); } setIsPaused(false); }} className="min-h-screen bg-slate-50 flex flex-col items-center relative font-sans overflow-x-hidden cursor-pointer pb-40">
       
-      {/* سكريبتات Adsterra العائمة */}
       <Script src={ADS.SOCIAL} strategy="afterInteractive" />
       <Script src={ADS.POPUNDER} strategy="afterInteractive" />
 
       {(!hasStarted || isPaused) && (
-        <div className="fixed inset-0 z-[100] bg-slate-900/90 backdrop-blur-md flex items-center justify-center p-6">
-          <div className="bg-white p-10 rounded-[3rem] text-center shadow-2xl border-8 border-orange-500 animate-pulse">
-            <span className="text-6xl mb-4 block">👆</span>
-            <h2 className="text-2xl font-black text-slate-800 uppercase">Adsterra Verification</h2>
-            <p className="text-slate-500 font-bold">Click anywhere to start</p>
+        <div className="fixed inset-0 z-[100] bg-slate-900/95 backdrop-blur-xl flex items-center justify-center p-6">
+          <div className="bg-white p-12 rounded-[3.5rem] text-center shadow-2xl border-8 border-blue-500 max-w-xs w-full animate-pulse">
+            <span className="text-7xl mb-6 block">👆</span>
+            <h2 className="text-3xl font-black text-slate-800 uppercase mb-2 tracking-tighter">Verify</h2>
+            <p className="text-slate-500 font-bold text-sm">Click anywhere to continue</p>
           </div>
         </div>
       )}
 
-      <header className="w-full bg-white p-6 text-center border-b border-orange-100 sticky top-0 z-40 shadow-sm">
-        <h1 className="text-2xl font-black text-orange-600 italic tracking-tighter">ExtraLink | Adsterra Mode</h1>
+      <header className="w-full bg-white p-6 text-center border-b border-slate-200 sticky top-0 z-40 shadow-sm">
+        <h1 className="text-2xl font-black text-blue-600 italic tracking-tighter">ExtraLink</h1>
       </header>
 
-      {/* إعلان Native علوي */}
-      <div className="w-full max-w-md mt-6 px-4 min-h-[160px]" ref={adTopRef}></div>
+      {/* 1. إعلان Native علوي */}
+      <div className="w-full max-w-md mt-6 px-4">
+        <div ref={adTopRef} className="rounded-3xl overflow-hidden shadow-lg border border-slate-100 bg-white min-h-[160px]"></div>
+      </div>
 
-      {/* كارت العداد */}
-      <div className="bg-white p-10 rounded-[3rem] shadow-2xl max-w-md w-full text-center border border-orange-100 z-10 mx-4 mt-10 relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-2 bg-orange-100">
-          <div className="h-full bg-orange-500 transition-all duration-1000" style={{ width: `${(count/15)*100}%` }}></div>
+      {/* الكارت الرئيسي للعداد */}
+      <div className="bg-white p-10 rounded-[3rem] shadow-2xl max-w-md w-full text-center border border-slate-100 z-10 mx-4 mt-10 relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-2 bg-slate-100">
+          <div className="h-full bg-blue-600 transition-all duration-1000" style={{ width: `${(count/15)*100}%` }}></div>
         </div>
-        <p className="text-orange-600 text-[10px] font-black uppercase mb-4 tracking-widest">Step {step} of {totalSteps}</p>
+        <div className="mb-8">
+          <span className="bg-blue-50 text-blue-600 text-[10px] font-black px-5 py-2 rounded-full uppercase tracking-widest border border-blue-100">
+            Step {step} of {totalSteps}
+          </span>
+        </div>
         
         {count > 0 ? (
           <div className="py-10">
-            <div className="text-9xl font-black text-slate-800 tabular-nums leading-none">{count}</div>
-            <p className="text-slate-400 font-black mt-6 uppercase text-[10px] tracking-[0.3em] animate-pulse">Scanning Adsterra Servers...</p>
+            <div className="text-9xl font-black text-slate-800 tabular-nums leading-none tracking-tighter">{count}</div>
+            <p className="text-slate-400 font-black mt-6 uppercase text-[10px] tracking-[0.3em] animate-pulse">Security Scan...</p>
           </div>
         ) : (
           <div className="py-10 space-y-4">
-            <button onClick={(e) => { e.stopPropagation(); setShowRealButton(true); }} className="w-full bg-orange-600 text-white font-black py-7 rounded-[2.5rem] text-2xl uppercase shadow-xl active:scale-95">CONTINUE</button>
-            {showRealButton && <p className="text-red-600 font-black text-sm animate-bounce uppercase">👇 Scroll down for Next Page 👇</p>}
+            <button onClick={(e) => { e.stopPropagation(); setShowRealButton(true); }} className="w-full bg-blue-600 text-white font-black py-7 rounded-[2.5rem] text-2xl uppercase tracking-tighter shadow-xl active:scale-95 transition-all">CONTINUE</button>
+            {showRealButton && <p className="text-red-600 font-black text-sm animate-bounce uppercase tracking-tighter">👇 Scroll down to the bottom 👇</p>}
           </div>
         )}
       </div>
 
-      {/* محتوى طويل + بانر منتصف */}
+      {/* محتوى طويل */}
       <div className="max-w-md w-full px-8 mt-20 space-y-20 text-center">
-        <div className="flex flex-col items-center py-10" ref={adMiddleRef}></div>
-        
-        <div className="bg-slate-900 p-8 rounded-[2.5rem] font-mono text-[10px] text-orange-400 text-left space-y-3 shadow-2xl">
-          <p>{`> Adsterra Handshake: OK`}</p>
-          <p>{`> Encrypting Data...`}</p>
-          <p>{`> Status: SECURE`}</p>
+        <div className="space-y-6">
+          <h3 className="font-black text-slate-800 uppercase text-sm tracking-widest">Server Status</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm"><p className="text-green-500 font-black text-2xl">99.9%</p><p className="text-[8px] font-bold uppercase text-slate-400">Uptime</p></div>
+            <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm"><p className="text-blue-500 font-black text-2xl">24/7</p><p className="text-[8px] font-bold uppercase text-slate-400">Support</p></div>
+          </div>
         </div>
 
-        {/* إعلان Native سفلي */}
-        <div className="w-full min-h-[160px]" ref={adBottomRef}></div>
+        {/* 2. بانر Adsterra المربع 300x250 */}
+        <div className="flex flex-col items-center py-10">
+          <p className="text-slate-300 text-[7px] font-black uppercase mb-4 tracking-[0.5em]">Sponsored Content</p>
+          <div ref={adMiddleRef} className="rounded-[3rem] overflow-hidden shadow-2xl border-[12px] border-white bg-white min-h-[250px] min-w-[300px]"></div>
+        </div>
+
+        <div className="space-y-6">
+          <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest">Live Security Logs</h4>
+          <div className="bg-slate-900 p-8 rounded-[2.5rem] font-mono text-[10px] text-green-500 text-left space-y-3 shadow-2xl border border-slate-800">
+            <p>{`> Initializing secure handshake...`}</p>
+            <p>{`> Verifying IP: 103.XX.XX.XX`}</p>
+            <p>{`> Bypassing firewall... OK`}</p>
+            <p>{`> Connection: STABLE`}</p>
+          </div>
+        </div>
+
+        {/* 3. إعلان Native سفلي */}
+        <div className="w-full px-4 py-10">
+          <p className="text-[7px] text-slate-400 font-black uppercase mb-4 text-center tracking-[0.3em]">Recommended for you</p>
+          <div ref={adBottomRef} className="rounded-3xl overflow-hidden shadow-lg border border-slate-100 bg-white min-h-[160px]"></div>
+        </div>
 
         {/* الزر الحقيقي */}
         {showRealButton && (
-          <div className="pt-10 pb-20">
-            <button onClick={(e) => { e.stopPropagation(); onNext(); }} className="w-full bg-orange-600 text-white font-black py-8 rounded-[2.5rem] shadow-2xl text-3xl uppercase">Next Page →</button>
+          <div className="pt-10 pb-20 animate-fadeIn">
+            <button onClick={(e) => { e.stopPropagation(); onNext(); }} className="w-full bg-blue-600 text-white font-black py-8 rounded-[2.5rem] shadow-2xl transition-all active:scale-95 text-3xl uppercase tracking-tighter">
+              Next Page →
+            </button>
           </div>
         )}
       </div>
+
+      <footer className="mt-20 opacity-20 grayscale font-black text-[8px] tracking-[0.5em] text-center px-10 pb-10">
+        EXTRALINK SECURE PROTOCOL v4.2.0-STABLE
+      </footer>
     </div>
   );
 }
