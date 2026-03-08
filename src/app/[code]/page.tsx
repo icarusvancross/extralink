@@ -1,29 +1,31 @@
 "use client";
-import { useState, useEffect, memo } from 'react';
+import { useState, useEffect, useRef, memo } from 'react';
 import { useParams } from 'next/navigation';
 import { supabase } from '../lib/supabase'; 
-import Script from 'next/script';
 
-// 1. عزل مكون الإعلان خارج المكون الرئيسي لضمان عدم التحديث المستمر
-const AdSlot = memo(({ id }: { id: string }) => {
-  return (
-    <div className="my-10 flex flex-col items-center justify-center w-full min-h-[280px]">
-      <p className="text-[7px] text-slate-300 font-black uppercase mb-2 tracking-[0.5em]">Advertisement</p>
-      <div className="rounded-[2.5rem] overflow-hidden shadow-2xl border-4 border-white bg-white min-h-[250px] min-w-[300px] flex items-center justify-center">
-        <iframe 
-          src="/ad300.html" 
-          width="300" 
-          height="250" 
-          frameBorder="0" 
-          scrolling="no" 
-          title={`ad-${id}`}
-        ></iframe>
-      </div>
+// --- مكونات الإعلانات المعزولة (تمنع الانهيار وتضمن الظهور الفوري) ---
+
+const AdBanner300 = memo(({ id }: { id: string }) => (
+  <div className="my-10 flex flex-col items-center justify-center w-full min-h-[280px]">
+    <p className="text-[7px] text-slate-300 font-black uppercase mb-2 tracking-[0.4em]">Sponsored Content</p>
+    <div className="rounded-[2.5rem] overflow-hidden shadow-2xl border-4 border-white bg-white min-h-[250px] min-w-[300px] flex items-center justify-center">
+      <iframe src="/ad300.html" width="300" height="250" frameBorder="0" scrolling="no" title={`banner-${id}`}></iframe>
     </div>
-  );
-});
+  </div>
+));
+AdBanner300.displayName = "AdBanner300";
 
-AdSlot.displayName = "AdSlot";
+const AdNative = memo(({ id }: { id: string }) => (
+  <div className="my-10 w-full max-w-md px-4 min-h-[200px]">
+    <p className="text-[7px] text-slate-300 font-black uppercase mb-2 text-center tracking-[0.4em]">Recommended For You</p>
+    <div className="rounded-[2.5rem] overflow-hidden shadow-lg border border-slate-100 bg-white min-h-[180px] flex items-center justify-center">
+      <iframe src="/ad-native.html" className="w-full h-[180px]" frameBorder="0" scrolling="no" title={`native-${id}`}></iframe>
+    </div>
+  </div>
+));
+AdNative.displayName = "AdNative";
+
+// --- المكون الرئيسي للموقع ---
 
 export default function WaitingPage() {
   const { code } = useParams();
@@ -36,33 +38,48 @@ export default function WaitingPage() {
   const [hasStarted, setHasStarted] = useState(false);
   const [showRealButton, setShowRealButton] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isAdBlockerActive, setIsAdBlockerActive] = useState(false);
   const [isBlocked, setIsBlocked] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
-    const initData = async () => {
+    const initPage = async () => {
       try {
+        // 1. فحص AdBlock (طريقة الـ Bait المضمونة)
+        const bait = document.createElement('div');
+        bait.className = 'pub_300x250 text-ads ad-placeholder';
+        bait.style.cssText = 'width:1px;height:1px;position:absolute;left:-1000px;';
+        document.body.appendChild(bait);
+        if (window.getComputedStyle(bait).display === 'none' || bait.offsetHeight === 0) {
+          setIsAdBlockerActive(true);
+        }
+        bait.remove();
+
+        // 2. جلب IP وفحص الحظر (3 زيارات)
         const ipRes = await fetch('https://api.ipify.org?format=json');
         const { ip } = await ipRes.json();
         const { data: blocked } = await supabase.rpc('check_ip_limit', { visitor_ip: ip });
         if (blocked) setIsBlocked(true);
 
+        // 3. جلب بيانات الرابط
         const { data } = await supabase.from('links').select('*').eq('short_code', code).single();
         if (!data) window.location.href = "/";
         else { setLinkData(data); setLoading(false); }
       } catch (e) { setLoading(false); }
     };
-    initData();
+    initPage();
   }, [code]);
 
+  // محرك العداد (ثابت لا يتأثر بالـ Re-render)
   useEffect(() => {
     let interval: any;
-    if (hasStarted && !isPaused && !document.hidden && count > 0) {
+    if (isMounted && hasStarted && !isPaused && !document.hidden && !isAdBlockerActive && count > 0) {
       interval = setInterval(() => setCount(prev => prev - 1), 1000);
     }
     return () => clearInterval(interval);
-  }, [hasStarted, isPaused, count]);
+  }, [isMounted, hasStarted, isPaused, count, isAdBlockerActive]);
 
+  // مستشعر التركيز لاستئناف العداد تلقائياً
   useEffect(() => {
     const handleFocus = () => setIsPaused(false);
     const handleBlur = () => setIsPaused(true);
@@ -74,8 +91,19 @@ export default function WaitingPage() {
     };
   }, []);
 
-  if (!isMounted || loading) return <div className="min-h-screen bg-slate-950 flex items-center justify-center text-blue-500 font-bold animate-pulse uppercase tracking-[0.3em]">Secure Connection...</div>;
-  if (isBlocked) return <div className="min-h-screen bg-slate-950 flex items-center justify-center text-red-500 p-10 text-center font-black">DAILY LIMIT REACHED! 🛑</div>;
+  if (!isMounted) return null;
+
+  if (isAdBlockerActive) return (
+    <div className="min-h-screen bg-red-600 flex flex-col items-center justify-center p-6 text-center text-white font-sans">
+      <span className="text-8xl mb-6">🛡️</span>
+      <h1 className="text-4xl font-black mb-4 uppercase tracking-tighter">AdBlock Detected!</h1>
+      <p className="max-w-md text-lg mb-8 opacity-90 font-medium">To continue, please disable your AdBlocker. We keep our service free by showing ads.</p>
+      <button onClick={() => window.location.reload()} className="bg-white text-red-600 px-12 py-4 rounded-full font-black text-xl shadow-2xl hover:scale-105 transition-all">I DISABLED IT, RELOAD 🔄</button>
+    </div>
+  );
+
+  if (loading || !linkData) return <div className="min-h-screen bg-slate-950 flex items-center justify-center text-blue-500 font-bold animate-pulse uppercase tracking-[0.3em] text-sm">ExtraLink | Securing Connection...</div>;
+  if (isBlocked) return <div className="min-h-screen bg-slate-950 flex items-center justify-center text-red-500 p-10 text-center font-black text-2xl uppercase">Daily Limit Reached! 🛑</div>;
 
   const handleStart = () => {
     setHasStarted(true);
@@ -104,7 +132,7 @@ export default function WaitingPage() {
       
       {(!hasStarted || isPaused) && (
         <div className="fixed inset-0 z-[100] bg-slate-900/95 flex items-center justify-center p-6 backdrop-blur-xl">
-          <div className="bg-white p-12 rounded-[3.5rem] text-center shadow-2xl border-8 border-blue-500 max-w-xs w-full text-slate-900 animate-pulse">
+          <div className="bg-white p-12 rounded-[3.5rem] text-center shadow-2xl border-8 border-blue-600 animate-pulse max-w-xs w-full text-slate-900">
             <span className="text-7xl mb-6 block">👆</span>
             <h2 className="text-3xl font-black uppercase tracking-tighter mb-2">Verify</h2>
             <p className="font-bold text-sm text-slate-500 italic">Click anywhere to continue</p>
@@ -116,31 +144,31 @@ export default function WaitingPage() {
         ExtraLink
       </header>
 
-      {/* 1. إعلان القمة - يظهر فوراً */}
-      <AdSlot id="top" />
+      {/* 1. الإعلان الأول: Native العلوي */}
+      <AdNative id="top-native" />
 
-      {/* كارت العداد */}
+      {/* كارت العداد الرئيسي */}
       <div className="bg-white p-10 rounded-[3rem] shadow-2xl max-w-md w-full text-center border border-slate-100 z-10 mx-4 mt-10 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-2 bg-slate-100">
           <div className="h-full bg-blue-600 transition-all duration-1000" style={{ width: `${(count/15)*100}%` }}></div>
         </div>
         <div className="mb-8">
-          <span className="bg-blue-50 text-blue-600 text-[10px] font-black px-6 py-2 rounded-full uppercase border border-blue-100 italic">
+          <span className="bg-blue-50 text-blue-600 text-[10px] font-black px-5 py-2 rounded-full uppercase border border-blue-100 italic">
             {isFinalPage ? 'Final Step' : `Step ${step} of ${linkData.page_count}`}
           </span>
         </div>
         <div className="py-10 text-9xl font-black text-slate-800 tabular-nums leading-none tracking-tighter">{count}</div>
         
         {count === 0 && (
-          <div className="py-6 space-y-4">
+          <div className="py-6 space-y-4 text-slate-900">
             <button 
               onClick={(e) => { e.stopPropagation(); setShowRealButton(true); }}
-              className="w-full bg-blue-600 text-white font-black py-7 rounded-[2rem] text-2xl uppercase shadow-xl transition-all active:scale-95"
+              className="w-full bg-blue-600 text-white font-black py-7 rounded-[2.5rem] text-2xl uppercase shadow-xl active:scale-95 transition-all"
             >
               CONTINUE
             </button>
             {showRealButton && (
-              <p className="text-red-600 font-black text-xs animate-bounce uppercase tracking-widest pt-2">
+              <p className="text-red-600 font-black text-xs animate-bounce uppercase tracking-widest pt-2 italic">
                 👇 Scroll to the bottom to find the button 👇
               </p>
             )}
@@ -148,35 +176,35 @@ export default function WaitingPage() {
         )}
       </div>
 
-      {/* 2. إعلان تحت العداد - يظهر فوراً */}
-      <AdSlot id="below-card" />
+      {/* 2. الإعلان الثاني: Banner تحت العداد */}
+      <AdBanner300 id="below-timer" />
 
-      {/* محتوى الصفحة الطويل جداً */}
+      {/* محتوى طويل لإجبار السكرول */}
       <div className="max-w-md w-full px-8 mt-20 space-y-24 text-center text-slate-400">
         
-        <div className="space-y-4">
+        <div className="space-y-6">
           <h3 className="font-black text-slate-800 uppercase text-xs tracking-[0.3em]">Cloud Security Protection</h3>
-          <p className="text-[11px] leading-relaxed font-medium italic">"ExtraLink uses advanced AES-256 cloud encryption to verify and protect every link generated on our secure platform."</p>
+          <p className="text-[11px] leading-relaxed font-medium italic opacity-80">"ExtraLink uses military-grade AES-256 cloud encryption to protect every link generated on our secure platform."</p>
         </div>
 
-        {/* 3. إعلان منتصف الصفحة - يظهر فوراً */}
-        <AdSlot id="middle" />
+        {/* 3. الإعلان الثالث: Native وسط الصفحة */}
+        <AdNative id="middle-native" />
 
-        <div className="grid grid-cols-1 gap-6">
-          <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm flex items-center justify-between px-10 text-slate-900">
-            <div className="text-left"><p className="text-slate-400 text-[8px] font-black uppercase mb-1">Status</p><p className="text-green-500 font-black text-xl italic uppercase">Verified</p></div>
-            <span className="text-3xl">✓</span>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center">
+            <p className="text-green-500 font-black text-2xl italic uppercase leading-none">99.9%</p>
+            <p className="text-[7px] font-bold uppercase text-slate-400 mt-2">Uptime</p>
           </div>
-          <div className="bg-white p-8 rounded-[2.5rem] border border-slate-100 shadow-sm flex items-center justify-between px-10 text-slate-900">
-            <div className="text-left"><p className="text-slate-400 text-[8px] font-black uppercase mb-1">Network</p><p className="text-blue-500 font-black text-xl italic uppercase">Encrypted</p></div>
-            <span className="text-3xl">🔒</span>
+          <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm flex flex-col items-center">
+            <p className="text-blue-500 font-black text-2xl italic uppercase leading-none">Safe</p>
+            <p className="text-[7px] font-bold uppercase text-slate-400 mt-2">Protocol</p>
           </div>
         </div>
 
-        {/* 4. إعلان قبل الزر الحقيقي - يظهر فوراً */}
-        <AdSlot id="above-button" />
+        {/* 4. الإعلان الرابع: Banner قبل الزر الحقيقي */}
+        <AdBanner300 id="above-button" />
 
-        {/* الزر الحقيقي (يظهر في القاع بعد ضغط Continue) */}
+        {/* الزر الحقيقي يظهر هنا فقط بعد ضغط Continue */}
         {showRealButton && (
           <div className="pt-10 animate-fadeIn">
             <button 
@@ -188,8 +216,8 @@ export default function WaitingPage() {
           </div>
         )}
 
-        {/* 5. إعلان القاع الأخير - يظهر فوراً */}
-        <AdSlot id="bottom" />
+        {/* 5. الإعلان الخامس: Native في القاع */}
+        <AdNative id="bottom-native" />
       </div>
 
       <footer className="mt-40 opacity-20 grayscale font-black text-[7px] tracking-[0.6em] text-center px-10 pb-10 uppercase">
