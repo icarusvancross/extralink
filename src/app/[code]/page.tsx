@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'next/navigation';
 import { supabase } from '../lib/supabase'; 
+import Script from 'next/script';
 
 export default function WaitingPage() {
   const { code } = useParams();
@@ -18,26 +19,26 @@ export default function WaitingPage() {
   const [isAdBlockerActive, setIsAdBlockerActive] = useState(false);
   const [isBlocked, setIsBlocked] = useState(false);
 
+  // رابط السمارت لينك (للبوب-أب عند الضغط)
+  const SMARTLINK = "https://www.effectivegatecpm.com/rcbjyg6w?key=4b7c5edb9470ea073ea974701e4201aa";
+
   useEffect(() => {
     setIsMounted(true);
     const initSecurity = async () => {
       try {
-        // 1. فحص AdBlock ذكي بدون ملفات خارجية (Bait Method)
+        // 1. فحص AdBlock ذكي (Bait Method)
         const bait = document.createElement('div');
-        bait.className = 'pub_300x250 pub_300x250m pub_728x90 text-ad text_ad text_ads text-ads ad-wrapper ad-placeholder';
-        bait.style.cssText = 'width: 1px !important; height: 1px !important; position: absolute !important; left: -10000px !important; top: -1000px !important;';
+        bait.className = 'pub_300x250 pub_728x90 text-ads ad-placeholder';
+        bait.style.cssText = 'width:1px;height:1px;position:absolute;left:-1000px;';
         document.body.appendChild(bait);
-        
-        const isBlockedByBrowser = window.getComputedStyle(bait).getPropertyValue('display') === 'none' || bait.offsetHeight === 0;
-        if (isBlockedByBrowser) {
+        if (window.getComputedStyle(bait).display === 'none' || bait.offsetHeight === 0) {
           setIsAdBlockerActive(true);
         }
-        document.body.removeChild(bait);
+        bait.remove();
 
-        // 2. فحص الـ IP والحد اليومي
+        // 2. جلب IP وفحص الحظر (3 زيارات)
         const ipRes = await fetch('https://api.ipify.org?format=json');
         const { ip } = await ipRes.json();
-        
         const { data: blocked } = await supabase.rpc('check_ip_limit', { visitor_ip: ip });
         if (blocked) setIsBlocked(true);
 
@@ -45,23 +46,21 @@ export default function WaitingPage() {
         const { data } = await supabase.from('links').select('*').eq('short_code', code).single();
         if (!data) window.location.href = "/";
         else { setLinkData(data); setLoading(false); }
-      } catch (e) { 
-        setLoading(false); 
-      }
+      } catch (e) { setLoading(false); }
     };
     initSecurity();
   }, [code]);
 
+  // منطق العداد الصارم
   useEffect(() => {
     let interval: any;
     if (isMounted && hasStarted && !isPaused && !document.hidden && !isAdBlockerActive && count > 0) {
-      interval = setInterval(() => {
-        setCount((prev) => prev - 1);
-      }, 1000);
+      interval = setInterval(() => setCount(prev => prev - 1), 1000);
     }
     return () => clearInterval(interval);
   }, [isMounted, hasStarted, isPaused, count, isAdBlockerActive]);
 
+  // استئناف العداد عند العودة للصفحة
   useEffect(() => {
     const handleFocus = () => setIsPaused(false);
     const handleBlur = () => setIsPaused(true);
@@ -75,36 +74,47 @@ export default function WaitingPage() {
 
   if (!isMounted) return null;
 
+  // واجهة منع الـ AdBlock
   if (isAdBlockerActive) return (
-    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-center text-white">
-      <div className="bg-red-500/10 border border-red-500 p-10 rounded-[3rem] max-w-md shadow-2xl">
-        <span className="text-6xl mb-6 block">🛡️</span>
-        <h1 className="text-2xl font-black mb-4 uppercase">AdBlock Detected</h1>
-        <p className="text-slate-400 text-sm mb-8">Please disable your AdBlocker to support our free service and access your link.</p>
-        <button onClick={() => window.location.reload()} className="w-full bg-red-600 hover:bg-red-700 text-white py-4 rounded-2xl font-black transition-all active:scale-95">RETRY CONNECTION 🔄</button>
-      </div>
+    <div className="min-h-screen bg-red-600 flex flex-col items-center justify-center p-6 text-center text-white font-sans">
+      <span className="text-8xl mb-6">🛡️</span>
+      <h1 className="text-4xl font-black mb-4 uppercase tracking-tighter">AdBlock Detected!</h1>
+      <p className="max-w-md text-lg mb-8 opacity-90">Please disable your AdBlocker to access the link. We keep our servers free by showing ads.</p>
+      <button onClick={() => window.location.reload()} className="bg-white text-red-600 px-12 py-4 rounded-full font-black text-xl shadow-2xl hover:scale-105 transition-all">I DISABLED IT, RELOAD 🔄</button>
     </div>
   );
 
   if (loading || !linkData) return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center text-blue-500 font-bold animate-pulse uppercase tracking-widest text-sm">
-      ExtraLink Secure Protocol...
+      Initializing Secure Protocol...
     </div>
   );
 
   if (isBlocked) return (
-    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-10 text-center font-black">
+    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-10 text-center font-black text-white">
       <span className="text-6xl mb-6">🛑</span>
-      <h1 className="text-3xl text-red-500 uppercase mb-4 tracking-tighter">Daily Limit Reached</h1>
-      <p className="text-slate-400 max-w-sm text-sm font-medium">You have reached the maximum of 3 links per day. Please come after 24 hours.</p>
+      <h1 className="text-3xl text-red-500 uppercase mb-4">Daily Limit Reached</h1>
+      <p className="text-slate-400">Maximum 3 links per 24 hours. Come back tomorrow!</p>
     </div>
   );
 
   const handleStart = () => {
-    setHasStarted(true);
+    if (!hasStarted) {
+      setHasStarted(true);
+      window.open(SMARTLINK, '_blank'); // أول Pop-up عند البداية
+    }
     setIsPaused(false);
-    // هنا سنضع رابط Adsterra Smartlink لاحقاً
   };
+
+  // مكون الإعلان الموحد (Iframe)
+  const AdSlot = () => (
+    <div className="my-8 flex flex-col items-center justify-center w-full">
+      <p className="text-[7px] text-slate-300 font-black uppercase mb-2 tracking-[0.4em]">Sponsored Advertisement</p>
+      <div className="rounded-[2.5rem] overflow-hidden shadow-xl border-4 border-white bg-white min-h-[250px] min-w-[300px]">
+        <iframe src="/ad300.html" width="300" height="250" frameBorder="0" scrolling="no"></iframe>
+      </div>
+    </div>
+  );
 
   return (
     <div onClick={handleStart} className="min-h-screen bg-slate-50 flex flex-col items-center font-sans cursor-pointer pb-80 relative">
@@ -123,13 +133,17 @@ export default function WaitingPage() {
         <h1 className="text-2xl font-black text-blue-600 italic tracking-tighter">ExtraLink</h1>
       </header>
 
+      {/* 1. إعلان علوي */}
+      <AdSlot />
+
+      {/* كارت العداد الرئيسي */}
       <div className="bg-white p-10 rounded-[3rem] shadow-2xl max-w-md w-full text-center border border-slate-100 z-10 mx-4 mt-10 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-2 bg-slate-100">
           <div className="h-full bg-blue-600 transition-all duration-1000" style={{ width: `${(count/15)*100}%` }}></div>
         </div>
         <div className="mb-8">
-          <span className="bg-blue-50 text-blue-600 text-[10px] font-black px-5 py-2 rounded-full uppercase tracking-widest border border-blue-100">
-            {isFinalPage ? 'Final Step' : `Step ${step} of ${linkData.page_count}`}
+          <span className="bg-blue-50 text-blue-600 text-[10px] font-black px-5 py-2 rounded-full uppercase border border-blue-100 italic">
+            {isFinalPage ? 'Finalizing Link' : `Step ${step} of ${linkData.page_count}`}
           </span>
         </div>
         
@@ -154,22 +168,51 @@ export default function WaitingPage() {
         )}
       </div>
 
-      <div className="max-w-md w-full px-8 mt-20 space-y-32 text-center text-slate-400">
+      {/* 2. إعلان تحت العداد */}
+      <AdSlot />
+
+      {/* محتوى طويل لإجبار السكرول */}
+      <div className="max-w-md w-full px-8 mt-20 space-y-20 text-center text-slate-400">
         <div className="space-y-4">
-          <h3 className="font-black text-slate-800 uppercase text-xs tracking-[0.3em]">Security Protocol Active</h3>
-          <p className="text-[10px] leading-relaxed font-medium">ExtraLink uses advanced AES-256 cloud encryption to verify your connection and protect the destination URL from bot traffic.</p>
+          <h3 className="font-black text-slate-800 uppercase text-xs tracking-[0.3em]">Security Shield Active</h3>
+          <p className="text-[10px] leading-relaxed font-medium italic">Our AES-256 cloud encryption is verifying your request. Please do not close this window.</p>
         </div>
 
+        {/* 3. إعلان وسط الصفحة */}
+        <AdSlot />
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm"><p className="text-green-500 font-black text-xl italic">99.9%</p><p className="text-[7px] font-bold uppercase text-slate-400">Uptime</p></div>
+          <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm"><p className="text-blue-500 font-black text-xl italic">Verified</p><p className="text-[7px] font-bold uppercase text-slate-400">Scan</p></div>
+        </div>
+
+        {/* الزر الحقيقي يظهر فقط في الأسفل بعد الضغط على Continue */}
         {showRealButton && (
           <div className="pt-10 animate-fadeIn">
             <button 
-              onClick={(e) => { e.stopPropagation(); isFinalPage ? (window.location.href = linkData.original_url) : (setStep(prev => prev + 1), setCount(15), setHasStarted(false), setShowRealButton(false)); }} 
+              onClick={async (e) => { 
+                e.stopPropagation(); 
+                if (isFinalPage) {
+                  const ipRes = await fetch('https://api.ipify.org?format=json');
+                  const { ip } = await ipRes.json();
+                  await supabase.rpc('record_visit_and_pay', { target_link_id: linkData.id, target_user_id: linkData.user_id, visitor_ip: ip });
+                  window.open(SMARTLINK, '_blank');
+                  window.location.href = linkData.original_url;
+                } else {
+                  if (step % 2 !== 0) window.open(SMARTLINK, '_blank');
+                  setStep(prev => prev + 1); setCount(15); setHasStarted(false); setShowRealButton(false);
+                  window.scrollTo(0, 0);
+                }
+              }} 
               className={`w-full text-white font-black py-8 rounded-[2.5rem] shadow-2xl transition-all active:scale-95 text-3xl uppercase tracking-tighter ${isFinalPage ? 'bg-emerald-500 shadow-emerald-200' : 'bg-blue-600 shadow-blue-200'}`}
             >
               {isFinalPage ? 'Get Link 🚀' : 'Next Page →'}
             </button>
           </div>
         )}
+
+        {/* 4. إعلان في القاع */}
+        <AdSlot />
       </div>
 
       <footer className="mt-40 opacity-20 grayscale font-black text-[7px] tracking-[0.6em] text-center px-10 pb-10 uppercase">
